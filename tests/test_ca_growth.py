@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import datetime
+import io
 import sys
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -17,6 +19,7 @@ from fm24_ca_growth import (  # noqa: E402
     month_key,
     monthly_gain,
     settle_month,
+    show_plan,
 )
 
 GAIN = 2
@@ -246,6 +249,21 @@ class GrowthPlanTest(unittest.TestCase):
             MAX_AGE,
         )
         self.assertEqual(len(changes), 1)
+
+
+class ShowPlanTest(unittest.TestCase):
+    def test_preview_does_not_write(self) -> None:
+        memory = memory_with_players([(TEAM, [PLAYER])])
+        memory.blobs[PLAYER] = record(100, 150)
+
+        output = io.StringIO()
+        with redirect_stdout(output):
+            ok = show_plan(memory, datetime.date(2025, 4, 1), GAIN, MAX_AGE)
+
+        self.assertTrue(ok)
+        self.assertEqual(memory.written, {})
+        self.assertIn("Planned CA changes", output.getvalue())
+        self.assertIn("1 players.", output.getvalue())
 
 
 class SettleMonthTest(unittest.TestCase):

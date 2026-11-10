@@ -109,6 +109,8 @@ team. Rules:
 - Invalid CA/PA values (outside `1..200`, or CA above PA) are skipped.
 - Players older than `max_age` from `src/config.json` (default **22**) are skipped.
 - Rosters, CA, PA, and record addresses are re-read on every settlement.
+- On startup and after a save reload it prints a preview of the players whose
+  CA will grow at the next settlement; the preview does not write.
 - Growth only happens when the in-game month actually changes; starting on the
   1st does not trigger an immediate settlement.
 - Stop with Ctrl+C.
@@ -117,9 +119,9 @@ Save reload detection
 
 When the game reloads a save, all memory addresses change, including the club
 address. The watcher compares the club address on each loop iteration. When it
-changes, the state resets to the current month without settling. Every
-settlement re-reads all roster, team, and player addresses, so no address is
-cached across reloads.
+changes, the state resets to the current month without settling and the next
+plan is previewed. Every settlement re-reads all roster, team, and player
+addresses, so no address is cached across reloads.
 
 This command **writes to game memory**, unlike the reader commands. Run it at
 the same privilege level as the game.

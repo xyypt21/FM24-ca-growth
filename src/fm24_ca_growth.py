@@ -149,15 +149,29 @@ def print_plan(today: datetime.date, changes: list[Change], gain: int) -> None:
     print(f"  {len(changes)} players.")
 
 
+def show_plan(
+    memory: Memory, today: datetime.date, gain: int, max_age_value: int
+) -> bool:
+    """Print the next settlement plan without writing; return False if unreadable."""
+    try:
+        players = controlled_players(memory)
+    except RuntimeError as error:
+        print(f"Cannot read players for preview ({error}).")
+        return False
+    if not players:
+        print("No players readable for preview.")
+        return False
+    print_plan(today, growth_plan(players, gain, max_age_value), gain)
+    return True
+
+
 def preview(memory: Memory, gain: int, max_age_value: int) -> int:
     """Show the current plan without writing to game memory."""
     today = game_date(memory)
     if today is None:
         raise RuntimeError("Cannot read the in-game date")
-    players = controlled_players(memory)
-    if not players:
+    if not show_plan(memory, today, gain, max_age_value):
         raise RuntimeError("No players found: save not loaded or wrong offsets")
-    print_plan(today, growth_plan(players, gain, max_age_value), gain)
     return 0
 
 
@@ -170,7 +184,8 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
     Save reload detection: reloading a save changes every address in memory,
     including the club. The watcher compares the club address on each loop
     iteration. When it changes, the state resets to the current month without
-    settling. Every settlement re-reads all rosters, so no address is cached.
+    settling and the next plan is previewed. Every settlement re-reads all
+    rosters, so no address is cached.
     """
     today = game_date(memory)
     if today is None:
@@ -179,6 +194,7 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
     last_club = user_club(memory)
     last_month = month_key(today)
     print(f"Game date {today}; waiting for the next month.")
+    show_plan(memory, today, gain, max_age_value)
 
     while True:
         time.sleep(POLL_SECONDS)
@@ -200,6 +216,7 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
             )
             last_club = current_club
             last_month = month_key(now)
+            show_plan(memory, now, gain, max_age_value)
             continue
 
         key = month_key(now)
