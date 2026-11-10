@@ -156,8 +156,7 @@ Build CA and PA first/second 4-3-3 lineups from every controlled team with
 scipy's assignment solver:
 
 ```powershell
-python src/fm24_lineup.py --once   # one run, then exit
-python src/fm24_lineup.py          # refresh every 30 seconds until Ctrl+C
+python src/fm24_lineup.py   # refresh every 30 seconds; Ctrl+C stops
 ```
 
 The four lineups are:

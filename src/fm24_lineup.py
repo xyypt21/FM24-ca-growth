@@ -4,21 +4,17 @@ For each metric (CA and PA), scipy assigns players to the 11 formation slots.
 The best XI is selected first, then the same solver picks the second XI from the
 remaining players.
 
-Run once:
-
-    python src/fm24_lineup.py --once
-
-Keep refreshing every 30 seconds until Ctrl+C (default):
+Run:
 
     python src/fm24_lineup.py
 
-The lineups are printed and written to ``output/lineup.csv``. The game must be
-running with a save loaded.
+It refreshes every ``INTERVAL`` seconds; Ctrl+C stops it. The lineups are
+printed and written to ``output/lineup.csv``. The game must be running with a
+save loaded.
 """
 
 from __future__ import annotations
 
-import argparse
 import csv
 import time
 from pathlib import Path
@@ -28,6 +24,9 @@ from scipy.optimize import linear_sum_assignment
 from fm24_config import load_config
 from fm24_memory import Memory
 from fm24_players import Player, all_players
+
+# Seconds between refreshes while the script is running.
+INTERVAL = 30
 
 # 4-3-3: one goalkeeper, four defenders, three midfielders, three forwards.
 SLOTS = (
@@ -143,20 +142,8 @@ def write_lineups(
                 )
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Command-line entry point."""
-    parser = argparse.ArgumentParser(
-        description="Pick CA and PA first/second 4-3-3 lineups."
-    )
-    parser.add_argument("--once", action="store_true", help="run once and exit")
-    parser.add_argument(
-        "--interval",
-        type=int,
-        default=30,
-        help="seconds between refreshes when looping (default 30)",
-    )
-    args = parser.parse_args(argv)
-
+def main() -> int:
+    """Refresh the lineups until interrupted."""
     config = load_config()
     try:
         while True:
@@ -169,11 +156,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"\nWrote {OUTPUT}")
             except RuntimeError as error:
                 print(f"Error: {error}")
-                if args.once:
-                    return 1
-            if args.once:
-                return 0
-            time.sleep(args.interval)
+            time.sleep(INTERVAL)
     except KeyboardInterrupt:
         print("Stopped.")
         return 0
