@@ -68,8 +68,9 @@ exe + manager.container_rva   -> manager container
 All offsets live in `src/offsets.toml`. Update only that file when the game
 version changes.
 
-See [docs/pointer-chain-example.md](docs/pointer-chain-example.md) for a
-concrete walkthrough with real addresses and values.
+See [docs/fm24_manager.md](docs/fm24_manager.md) and
+[docs/fm24_team.md](docs/fm24_team.md) for concrete walkthroughs with real
+addresses and values.
 
 ## Project layout
 
