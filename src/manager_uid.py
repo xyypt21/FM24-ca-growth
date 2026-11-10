@@ -9,7 +9,7 @@ The game must be running with a save loaded.
 
 from __future__ import annotations
 
-from fm24_game import read_manager_uid
+from fm24_memory import read_manager_uid
 
 
 def main() -> int:
