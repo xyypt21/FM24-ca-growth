@@ -18,6 +18,7 @@ from fm24_ca_growth import (  # noqa: E402
     max_age,
     month_key,
     monthly_gain,
+    print_plan,
     settle_month,
     show_plan,
 )
@@ -221,7 +222,7 @@ class GrowthPlanTest(unittest.TestCase):
         )
         self.assertEqual(
             changes,
-            [Change("Grows", 1, 100, 100 + GAIN, 150)],
+            [Change("Grows", 1, 100, 100 + GAIN, 150, 20.0)],
         )
 
     def test_skips_players_above_max_age(self) -> None:
@@ -236,7 +237,7 @@ class GrowthPlanTest(unittest.TestCase):
         )
         self.assertEqual(
             changes,
-            [Change("Young", 1, 100, 100 + GAIN, 150)],
+            [Change("Young", 1, 100, 100 + GAIN, 150, 22.0)],
         )
 
     def test_deduplicates_the_same_record(self) -> None:
@@ -249,6 +250,21 @@ class GrowthPlanTest(unittest.TestCase):
             MAX_AGE,
         )
         self.assertEqual(len(changes), 1)
+
+
+class PrintPlanTest(unittest.TestCase):
+    def test_sorts_by_age_youngest_first(self) -> None:
+        changes = [
+            Change("Older", 1, 100, 102, 150, 25.0),
+            Change("Younger", 2, 100, 102, 150, 18.0),
+        ]
+        output = io.StringIO()
+        with redirect_stdout(output):
+            print_plan(datetime.date(2025, 4, 1), changes, GAIN)
+
+        lines = output.getvalue().splitlines()
+        self.assertIn("Younger", lines[1])
+        self.assertIn("Older", lines[2])
 
 
 class ShowPlanTest(unittest.TestCase):

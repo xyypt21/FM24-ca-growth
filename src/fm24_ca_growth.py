@@ -47,6 +47,7 @@ class Change:
     ca: int
     new_ca: int
     pa: int
+    age: float | None = None
 
 
 def month_key(date: datetime.date) -> int:
@@ -117,6 +118,7 @@ def growth_plan(
                 ca=ca,
                 new_ca=new_ca,
                 pa=pa,
+                age=age,
             )
         )
     return changes
@@ -139,12 +141,16 @@ def settle_month(memory: Memory, gain: int, max_age_value: int) -> list[Change]:
 
 
 def print_plan(today: datetime.date, changes: list[Change], gain: int) -> None:
-    """Print the planned changes before or without writing them."""
+    """Print the planned changes sorted by age, youngest first."""
     print(f"Planned CA changes for {today} (+{gain} CA):")
-    for change in changes:
+    ordered = sorted(
+        changes, key=lambda change: (change.age is None, change.age or 0.0)
+    )
+    for change in ordered:
+        age = "-" if change.age is None else f"{change.age:.1f}"
         print(
-            f"  {change.name:<26} CA {change.ca:>3} -> {change.new_ca:>3}  "
-            f"PA {change.pa:>3}"
+            f"  {change.name:<26} age {age:>4}  CA {change.ca:>3} -> "
+            f"{change.new_ca:>3}  PA {change.pa:>3}"
         )
     print(f"  {len(changes)} players.")
 
