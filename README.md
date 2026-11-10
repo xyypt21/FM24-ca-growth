@@ -48,21 +48,24 @@ Example output, one UID per line:
 The first team can share the club UID; youth teams have their own UID. Linked
 B teams are included as well.
 
-## Read a team's players
-
-Pass one of the team UIDs printed above:
+## Read every controlled team's players
 
 ```powershell
-python src/fm24_players.py 920
+python src/fm24_players.py
 ```
 
-Example output (tab-separated):
+Each controlled team is printed with its UID, then its players (tab-separated):
 
 ```text
+Team 920
 Name	CA	PA	Age
 Leo Greiml	136	136	23.7
 Assan Ouédraogo	158	180	18.8
 Keke Topp	136	150	21.0
+
+Team 2000379849
+Name	CA	PA	Age
+...
 ```
 
 Names prefer the short name and fall back to first name + last name. Age is
@@ -106,7 +109,7 @@ concrete walkthrough with real addresses and values.
 |---|---|
 | `src/fm24_manager.py` | Manager lookup, manager UID chain, and command-line entry point |
 | `src/fm24_team.py` | All controlled team UIDs and command-line entry point |
-| `src/fm24_players.py` | Player names, CA, PA, and ages for a team UID |
+| `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_memory.py` | Process access, low-level reads, and pointer vectors |
 | `src/fm24_config.py` | Load and validate `offsets.toml` |
 | `src/offsets.toml` | FM24 memory offsets |

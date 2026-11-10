@@ -1,6 +1,6 @@
-"""List every player in a controlled team: name, CA, PA, and age.
+"""List every player in the controlled teams: name, CA, PA, and age.
 
-    team UID                      -> team address (searched in the club teams)
+    club teams                    -> every team controlled by the human manager
     team + roster_begin           -> player record pointer array
     record + 0                     -> record magic (selects the layout)
     record + ca / pa              -> current / potential ability (u16)
@@ -11,10 +11,9 @@
 
 Usage:
 
-    python src/fm24_players.py <team_uid>
+    python src/fm24_players.py    # all controlled teams, grouped by team UID
 
-The game must be running with a save loaded. Use `python src/fm24_team.py` to
-list the team UIDs controlled by the human manager.
+The game must be running with a save loaded.
 """
 
 from __future__ import annotations
@@ -122,15 +121,6 @@ def read_u16(record: bytes, offset: int) -> int:
     return int.from_bytes(record[offset : offset + 2], "little")
 
 
-def find_team(memory: Memory, uid: int) -> int:
-    """Return the address of a controlled team by its UID."""
-    uid_off = memory.config["team"]["uid_off"]
-    for team in club_teams(memory):
-        if memory.read_u32(team + uid_off) == uid:
-            return team
-    raise RuntimeError(f"Team UID {uid} is not controlled by the human manager")
-
-
 def players_in_team(
     memory: Memory, team: int, today: datetime.date | None = None
 ) -> list[dict[str, object]]:
@@ -171,38 +161,50 @@ def players_in_team(
     return players
 
 
-def players_by_team_uid(memory: Memory, uid: int) -> list[dict[str, object]]:
-    """Return every player in the controlled team with this UID."""
-    return players_in_team(memory, find_team(memory, uid))
+def team_players(
+    memory: Memory,
+) -> list[tuple[int, list[dict[str, object]]]]:
+    """Return (team UID, players) for every team controlled by the manager."""
+    uid_off = memory.config["team"]["uid_off"]
+    today = game_date(memory)
+    teams: list[tuple[int, list[dict[str, object]]]] = []
+    for team in club_teams(memory):
+        uid = memory.read_u32(team + uid_off)
+        if uid:
+            teams.append((uid, players_in_team(memory, team, today)))
+    return teams
 
 
 def read_players(
-    team_uid: int, config: Config | None = None
-) -> list[dict[str, object]]:
-    """Open the game process and read every player in the team."""
+    config: Config | None = None,
+) -> list[tuple[int, list[dict[str, object]]]]:
+    """Open the game process and read every player in every controlled team."""
     if config is None:
         config = load_config()
     with Memory.open(config) as memory:
-        return players_by_team_uid(memory, team_uid)
+        return team_players(memory)
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Command-line entry point: print the players of one controlled team."""
-    parser = argparse.ArgumentParser(description="List players in a controlled team.")
-    parser.add_argument("team_uid", type=int, help="team UID; see fm24_team.py")
-    args = parser.parse_args(argv)
+    """Command-line entry point: print every controlled team's players."""
+    parser = argparse.ArgumentParser(description="List players in controlled teams.")
+    parser.parse_args(argv)
 
     try:
-        players = read_players(args.team_uid)
+        teams = read_players()
     except RuntimeError as error:
         print(f"Error: {error}")
         return 1
 
-    print("Name\tCA\tPA\tAge")
-    for player in players:
-        age = player["age"]
-        age_text = "-" if age is None else f"{age:.1f}"
-        print(f"{player['name']}\t{player['ca']}\t{player['pa']}\t{age_text}")
+    for index, (uid, players) in enumerate(teams):
+        if index:
+            print()
+        print(f"Team {uid}")
+        print("Name\tCA\tPA\tAge")
+        for player in players:
+            age = player["age"]
+            age_text = "-" if age is None else f"{age:.1f}"
+            print(f"{player['name']}\t{player['ca']}\t{player['pa']}\t{age_text}")
     return 0
 
 

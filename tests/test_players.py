@@ -11,11 +11,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fm24_players import (  # noqa: E402
     calc_age,
-    find_team,
     game_date,
     parse_game_date,
-    players_by_team_uid,
+    players_in_team,
     read_string,
+    team_players,
 )
 
 BASE = 0x140000000
@@ -166,17 +166,6 @@ def team_memory(
     return FakeMemory(blobs, u32, vectors)
 
 
-class TeamLookupTest(unittest.TestCase):
-    def test_finds_team_by_uid(self) -> None:
-        memory = team_memory([TEAM, YOUTH_TEAM])
-        self.assertEqual(find_team(memory, YOUTH_UID), YOUTH_TEAM)
-
-    def test_unknown_uid_raises(self) -> None:
-        memory = team_memory([TEAM])
-        with self.assertRaisesRegex(RuntimeError, "not controlled"):
-            find_team(memory, 12345)
-
-
 class PlayerReadTest(unittest.TestCase):
     def test_reads_name_ca_pa_and_age(self) -> None:
         memory = team_memory(
@@ -187,7 +176,7 @@ class PlayerReadTest(unittest.TestCase):
                 OTHER_RECORD: b"\x00" * RECORD_READ,
             },
         )
-        players = players_by_team_uid(memory, TEAM_UID)
+        players = players_in_team(memory, TEAM)
         self.assertEqual(len(players), 1)
         self.assertEqual(
             players[0],
@@ -211,7 +200,7 @@ class PlayerReadTest(unittest.TestCase):
                 LAST_STRING: game_string("Greiml"),
             },
         )
-        self.assertEqual(players_by_team_uid(memory, TEAM_UID)[0]["name"], "Leo Greiml")
+        self.assertEqual(players_in_team(memory, TEAM)[0]["name"], "Leo Greiml")
 
     def test_falls_back_to_first_and_last_name(self) -> None:
         memory = team_memory(
@@ -228,9 +217,7 @@ class PlayerReadTest(unittest.TestCase):
                 LAST_STRING: game_string("Ouédraogo"),
             },
         )
-        self.assertEqual(
-            players_by_team_uid(memory, TEAM_UID)[0]["name"], "Assan Ouédraogo"
-        )
+        self.assertEqual(players_in_team(memory, TEAM)[0]["name"], "Assan Ouédraogo")
 
     def test_staff_magic_uses_its_own_person_offset(self) -> None:
         memory = team_memory(
@@ -240,9 +227,25 @@ class PlayerReadTest(unittest.TestCase):
                 PLAYER: make_record(90, 110, magic=MAGIC_PLAYER_STAFF, year=1990),
             },
         )
-        players = players_by_team_uid(memory, TEAM_UID)
+        players = players_in_team(memory, TEAM)
         self.assertEqual(players[0]["ca"], 90)
         self.assertEqual(players[0]["pa"], 110)
+
+    def test_groups_players_by_controlled_team_uid(self) -> None:
+        memory = team_memory(
+            [TEAM, YOUTH_TEAM],
+            vectors={
+                TEAM + 0x38: [PLAYER],
+                YOUTH_TEAM + 0x38: [OTHER_RECORD],
+            },
+            blobs={
+                PLAYER: make_record(136, 150),
+                OTHER_RECORD: make_record(90, 110),
+            },
+        )
+        teams = team_players(memory)
+        self.assertEqual([uid for uid, _ in teams], [TEAM_UID, YOUTH_UID])
+        self.assertEqual([players[0]["ca"] for _, players in teams], [136, 90])
 
 
 class DateTest(unittest.TestCase):
