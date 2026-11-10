@@ -25,12 +25,10 @@ import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from fm24_config import Config, load_config
+from fm24_config import Config, load_config, load_settings
 from fm24_memory import Memory
 from fm24_players import game_date, team_players
 
-# CA gained on each monthly settlement.
-MONTHLY_GAIN = 2
 # How often the in-game date is checked.
 POLL_SECONDS = 2.0
 
@@ -53,11 +51,19 @@ def month_key(date: datetime.date) -> int:
     return date.year * 12 + date.month
 
 
-def growth_target(ca: int, pa: int) -> int | None:
-    """Return CA + MONTHLY_GAIN when it stays within PA; otherwise None."""
+def monthly_gain(settings: dict[str, object]) -> int:
+    """Return the configured positive monthly CA gain."""
+    gain = settings.get("monthly_gain")
+    if not isinstance(gain, int) or isinstance(gain, bool) or gain <= 0:
+        raise RuntimeError("config.json must contain a positive integer monthly_gain")
+    return gain
+
+
+def growth_target(ca: int, pa: int, gain: int) -> int | None:
+    """Return CA + gain when it stays within PA; otherwise None."""
     if not (1 <= ca <= 200 and 1 <= pa <= 200) or ca > pa:
         return None
-    new_ca = ca + MONTHLY_GAIN
+    new_ca = ca + gain
     return new_ca if new_ca <= pa else None
 
 
@@ -66,7 +72,7 @@ def controlled_players(memory: Memory) -> list[Player]:
     return [player for _, players in team_players(memory) for player in players]
 
 
-def growth_plan(players: Iterable[Player]) -> list[Change]:
+def growth_plan(players: Iterable[Player], gain: int) -> list[Change]:
     """Return the planned CA changes, deduplicated by player record address."""
     changes: list[Change] = []
     seen: set[int] = set()
@@ -78,7 +84,7 @@ def growth_plan(players: Iterable[Player]) -> list[Change]:
 
         ca = player["ca"]
         pa = player["pa"]
-        new_ca = growth_target(ca, pa)
+        new_ca = growth_target(ca, pa, gain)
         if new_ca is None:
             continue
         changes.append(
@@ -93,7 +99,7 @@ def growth_plan(players: Iterable[Player]) -> list[Change]:
     return changes
 
 
-def settle_month(memory: Memory) -> list[Change]:
+def settle_month(memory: Memory, gain: int) -> list[Change]:
     """Write the planned CA changes and return the ones that were verified."""
     players = controlled_players(memory)
     if not players:
@@ -101,7 +107,7 @@ def settle_month(memory: Memory) -> list[Change]:
 
     ca_off = memory.config["player"]["ca"]
     written: list[Change] = []
-    for change in growth_plan(players):
+    for change in growth_plan(players, gain):
         if not memory.write_u16(change.address + ca_off, change.new_ca):
             print(f"Write failed: {change.name} (0x{change.address:X})")
             continue
@@ -109,9 +115,9 @@ def settle_month(memory: Memory) -> list[Change]:
     return written
 
 
-def print_plan(today: datetime.date, changes: list[Change]) -> None:
+def print_plan(today: datetime.date, changes: list[Change], gain: int) -> None:
     """Print the planned changes before or without writing them."""
-    print(f"Planned CA changes for {today} (+{MONTHLY_GAIN} CA):")
+    print(f"Planned CA changes for {today} (+{gain} CA):")
     for change in changes:
         print(
             f"  {change.name:<26} CA {change.ca:>3} -> {change.new_ca:>3}  "
@@ -120,7 +126,7 @@ def print_plan(today: datetime.date, changes: list[Change]) -> None:
     print(f"  {len(changes)} players.")
 
 
-def preview(memory: Memory) -> int:
+def preview(memory: Memory, gain: int) -> int:
     """Show the current plan without writing to game memory."""
     today = game_date(memory)
     if today is None:
@@ -128,11 +134,11 @@ def preview(memory: Memory) -> int:
     players = controlled_players(memory)
     if not players:
         raise RuntimeError("No players found: save not loaded or wrong offsets")
-    print_plan(today, growth_plan(players))
+    print_plan(today, growth_plan(players, gain), gain)
     return 0
 
 
-def watch(memory: Memory) -> int:
+def watch(memory: Memory, gain: int) -> int:
     """Settle once per new in-game month until interrupted."""
     today = game_date(memory)
     if today is None:
@@ -165,7 +171,7 @@ def watch(memory: Memory) -> int:
             print(f"{now}: month changed without seeing the 1st; settling once.")
 
         try:
-            written = settle_month(memory)
+            written = settle_month(memory, gain)
         except RuntimeError as error:
             print(f"Cannot read players ({error}); retrying.")
             continue
@@ -193,10 +199,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         config: Config = load_config()
+        gain = monthly_gain(load_settings())
         with Memory.open(config) as memory:
             if args.preview:
-                return preview(memory)
-            return watch(memory)
+                return preview(memory, gain)
+            return watch(memory, gain)
     except KeyboardInterrupt:
         print("Stopped.")
         return 0

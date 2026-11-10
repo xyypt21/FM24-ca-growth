@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import tomllib
 from pathlib import Path
 from typing import Any
 
 CONFIG_PATH = Path(__file__).with_name("offsets.toml")
+SETTINGS_PATH = Path(__file__).with_name("config.json")
 
 Config = dict[str, Any]
 
@@ -50,3 +52,18 @@ def load_config(path: Path = CONFIG_PATH) -> Config:
             f"Offsets file {path} has an invalid [player.layouts] key: {error}"
         ) from error
     return config
+
+
+def load_settings(path: Path = SETTINGS_PATH) -> dict[str, Any]:
+    """Load config.json for settings that are not game offsets."""
+    try:
+        with path.open(encoding="utf-8") as file:
+            settings = json.load(file)
+    except OSError as error:
+        raise RuntimeError(f"Cannot read settings file {path}: {error}") from error
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"Settings file is not valid JSON: {error}") from error
+
+    if not isinstance(settings, dict):
+        raise RuntimeError(f"Settings file {path} must contain a JSON object")
+    return settings

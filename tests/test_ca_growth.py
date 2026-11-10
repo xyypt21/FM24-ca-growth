@@ -10,13 +10,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fm24_ca_growth import (  # noqa: E402
-    MONTHLY_GAIN,
     Change,
     growth_plan,
     growth_target,
     month_key,
+    monthly_gain,
     settle_month,
 )
+
+GAIN = 2
 
 BASE = 0x140000000
 CONTAINER = 0x20000000
@@ -158,23 +160,31 @@ def player(address: int, ca: int, pa: int, name: str = "Player") -> dict:
 
 class GrowthTargetTest(unittest.TestCase):
     def test_adds_monthly_gain(self) -> None:
-        self.assertEqual(growth_target(100, 150), 100 + MONTHLY_GAIN)
+        self.assertEqual(growth_target(100, 150, GAIN), 100 + GAIN)
 
     def test_stops_at_pa(self) -> None:
-        self.assertIsNone(growth_target(100, 101))
-        self.assertIsNone(growth_target(100, 100))
+        self.assertIsNone(growth_target(100, 101, GAIN))
+        self.assertIsNone(growth_target(100, 100, GAIN))
 
     def test_invalid_values_are_skipped(self) -> None:
-        self.assertIsNone(growth_target(0, 150))
-        self.assertIsNone(growth_target(150, 0))
-        self.assertIsNone(growth_target(150, 100))
-        self.assertIsNone(growth_target(201, 210))
+        self.assertIsNone(growth_target(0, 150, GAIN))
+        self.assertIsNone(growth_target(150, 0, GAIN))
+        self.assertIsNone(growth_target(150, 100, GAIN))
+        self.assertIsNone(growth_target(201, 210, GAIN))
 
     def test_month_key_orders_months(self) -> None:
         self.assertLess(
             month_key(datetime.date(2024, 12, 31)),
             month_key(datetime.date(2025, 1, 1)),
         )
+
+    def test_monthly_gain_comes_from_settings(self) -> None:
+        self.assertEqual(monthly_gain({"monthly_gain": 2}), 2)
+
+    def test_invalid_monthly_gain_raises(self) -> None:
+        for settings in ({}, {"monthly_gain": 0}, {"monthly_gain": True}):
+            with self.assertRaisesRegex(RuntimeError, "monthly_gain"):
+                monthly_gain(settings)
 
 
 class GrowthPlanTest(unittest.TestCase):
@@ -185,11 +195,12 @@ class GrowthPlanTest(unittest.TestCase):
                 player(2, 100, 100, "At PA"),
                 player(3, 100, 101, "Would exceed"),
                 player(4, 0, 150, "Invalid"),
-            ]
+            ],
+            GAIN,
         )
         self.assertEqual(
             changes,
-            [Change("Grows", 1, 100, 100 + MONTHLY_GAIN, 150)],
+            [Change("Grows", 1, 100, 100 + GAIN, 150)],
         )
 
     def test_deduplicates_the_same_record(self) -> None:
@@ -197,7 +208,8 @@ class GrowthPlanTest(unittest.TestCase):
             [
                 player(1, 100, 150, "Same"),
                 player(1, 100, 150, "Same"),
-            ]
+            ],
+            GAIN,
         )
         self.assertEqual(len(changes), 1)
 
@@ -213,18 +225,18 @@ class SettleMonthTest(unittest.TestCase):
         memory.blobs[PLAYER] = record(100, 150)
         memory.blobs[PLAYER_AT_PA] = record(150, 150)
 
-        written = settle_month(memory)
+        written = settle_month(memory, GAIN)
 
         self.assertEqual(len(written), 1)
         self.assertEqual(
             memory.written,
-            {PLAYER + CONFIG["player"]["ca"]: 100 + MONTHLY_GAIN},
+            {PLAYER + CONFIG["player"]["ca"]: 100 + GAIN},
         )
 
     def test_no_players_raises(self) -> None:
         memory = memory_with_players([(TEAM, [])])
         with self.assertRaisesRegex(RuntimeError, "No players"):
-            settle_month(memory)
+            settle_month(memory, GAIN)
 
 
 if __name__ == "__main__":

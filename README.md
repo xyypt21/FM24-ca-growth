@@ -101,8 +101,9 @@ Run the watcher:
 python src/fm24_ca_growth.py
 ```
 
-On every new in-game month it adds `MONTHLY_GAIN` (currently **2**) CA to every
-unique player in every controlled team. Rules:
+On every new in-game month it adds the `monthly_gain` value from
+`src/config.json` (currently **2**) CA to every unique player in every controlled
+team. Rules:
 
 - CA never grows above PA; players already at their potential are skipped.
 - Invalid CA/PA values (outside `1..200`, or CA above PA) are skipped.
@@ -156,7 +157,8 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_memory.py` | Process access, low-level reads/writes, and pointer vectors |
-| `src/fm24_config.py` | Load and validate `offsets.toml` |
+| `src/config.json` | Non-offset settings, such as `monthly_gain` |
+| `src/fm24_config.py` | Load and validate `offsets.toml` and `config.json` |
 | `src/offsets.toml` | FM24 memory offsets |
 | `tests/` | Unit tests (no game process required) |
 

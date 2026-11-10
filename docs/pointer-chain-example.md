@@ -172,5 +172,6 @@ exe base 0x140000000
         read u32     -> 0x07E9005B         in-game date; a new month triggers growth
 ```
 
-The write is verified by reading CA back. Players whose `CA + 2` would exceed PA
-are skipped, and CA is never clamped to PA.
+The write is verified by reading CA back. Players whose `CA + monthly_gain`
+(from `src/config.json`) would exceed PA are skipped, and CA is never clamped to
+PA.
