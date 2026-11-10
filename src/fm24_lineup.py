@@ -9,15 +9,12 @@ Run:
     python src/fm24_lineup.py
 
 It refreshes every ``INTERVAL`` seconds; Ctrl+C stops it. The lineups are
-printed and written to ``output/lineup.csv``. The game must be running with a
-save loaded.
+printed to the console. The game must be running with a save loaded.
 """
 
 from __future__ import annotations
 
-import csv
 import time
-from pathlib import Path
 
 from scipy.optimize import linear_sum_assignment
 
@@ -43,9 +40,7 @@ SLOTS = (
     "ST",
 )
 METRICS = ("ca", "pa")
-SQUADS = ("First XI", "Second XI")
 FORBIDDEN = 10**9
-OUTPUT = Path(__file__).resolve().parents[1] / "output" / "lineup.csv"
 
 
 def select_lineup(
@@ -74,27 +69,20 @@ def select_lineup(
     return sorted(lineup, key=lambda entry: slots.index(entry[0]))
 
 
-def select_two_lineups(
-    players: list[Player], metric: str, slots: tuple[str, ...] = SLOTS
-) -> list[list[tuple[str, Player]]]:
-    """Return first and second XI for one metric."""
-    first = select_lineup(players, metric, slots)
-    used = {id(player) for _, player in first}
-    remaining = [player for player in players if id(player) not in used]
-    try:
-        second = select_lineup(remaining, metric, slots)
-    except RuntimeError as error:
-        raise RuntimeError(f"Second XI: {error}") from error
-    return [first, second]
-
-
 def build_lineups(players: list[Player]) -> list[tuple[str, list[tuple[str, Player]]]]:
     """Return CA first/second and PA first/second, in display order."""
     lineups: list[tuple[str, list[tuple[str, Player]]]] = []
     for metric in METRICS:
-        first, second = select_two_lineups(players, metric)
-        lineups.append((f"{metric.upper()} {SQUADS[0]}", first))
-        lineups.append((f"{metric.upper()} {SQUADS[1]}", second))
+        first = select_lineup(players, metric)
+        used = {id(player) for _, player in first}
+        remaining = [player for player in players if id(player) not in used]
+        try:
+            second = select_lineup(remaining, metric)
+        except RuntimeError as error:
+            raise RuntimeError(f"{metric.upper()} Second XI: {error}") from error
+
+        lineups.append((f"{metric.upper()} First XI", first))
+        lineups.append((f"{metric.upper()} Second XI", second))
     return lineups
 
 
@@ -118,30 +106,6 @@ def format_lineups(
     return "\n".join(lines).rstrip()
 
 
-def write_lineups(
-    lineups: list[tuple[str, list[tuple[str, Player]]]], path: Path = OUTPUT
-) -> None:
-    """Write every lineup to a CSV file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8-sig", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(["Squad", "Slot", "Name", "Age", "CA", "PA", "Positions"])
-        for label, lineup in lineups:
-            for slot, player in lineup:
-                age = player["age"]
-                writer.writerow(
-                    [
-                        label,
-                        slot,
-                        player["name"],
-                        "" if age is None else f"{age:.1f}",
-                        player["ca"],
-                        player["pa"],
-                        "/".join(player["positions"]),
-                    ]
-                )
-
-
 def main() -> int:
     """Refresh the lineups until interrupted."""
     config = load_config()
@@ -150,10 +114,7 @@ def main() -> int:
             try:
                 with Memory.open(config) as memory:
                     players = all_players(memory)
-                lineups = build_lineups(players)
-                print(format_lineups(lineups))
-                write_lineups(lineups)
-                print(f"\nWrote {OUTPUT}")
+                print(format_lineups(build_lineups(players)))
             except RuntimeError as error:
                 print(f"Error: {error}")
             time.sleep(INTERVAL)

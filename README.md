@@ -181,8 +181,7 @@ DL   Thomas Ouwejan               26.7 123 130  DL/DM/ML/WBL
 - Each metric is selected separately: `ca` ranks by CA, `pa` ranks by PA.
 - The best XI is selected first, then the second XI from the remaining players.
 - Positions are read from the player record (`>= 15` can play the slot).
-- The lineups are printed and written to `output/lineup.csv` with columns
-  `Squad`, `Slot`, `Name`, `Age`, `CA`, `PA`, `Positions`.
+- The four lineups are printed to the console; no files are written.
 
 ## Build a Windows exe
 
