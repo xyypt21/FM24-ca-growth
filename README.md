@@ -11,7 +11,7 @@ FM24 memory tooling. The first step, reading the human manager's UID, is done.
 ## Install
 
 ```powershell
-python -m pip install pymem psutil
+python -m pip install pymem
 ```
 
 ## Read the manager UID

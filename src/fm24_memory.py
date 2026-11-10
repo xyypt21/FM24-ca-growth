@@ -16,20 +16,9 @@ import contextlib
 from collections.abc import Iterator
 from typing import Any
 
-import psutil
 import pymem
 
 Config = dict[str, Any]
-
-
-def find_pid(process_name: str) -> int | None:
-    """Return the PID matching process_name (case-insensitive), or None."""
-    wanted = process_name.lower()
-    for process in psutil.process_iter(["name"]):
-        name = process.info["name"]
-        if name and name.lower() == wanted:
-            return process.pid
-    return None
 
 
 class Memory:
@@ -45,14 +34,13 @@ class Memory:
     def open(cls, config: Config) -> Iterator[Memory]:
         """Open the game process; raise RuntimeError if it cannot be opened."""
         process_name = config["process_name"]
-        pid = find_pid(process_name)
-        if pid is None:
-            raise RuntimeError(
-                f"Cannot find {process_name}: start the game and load a save"
-            )
 
         try:
-            process = pymem.Pymem(pid)
+            process = pymem.Pymem(process_name, exact_match=True)
+        except pymem.exception.ProcessNotFound as error:
+            raise RuntimeError(
+                f"Cannot find {process_name}: start the game and load a save"
+            ) from error
         except Exception as error:
             raise RuntimeError(
                 f"Cannot open the process: {error} "

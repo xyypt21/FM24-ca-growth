@@ -10,7 +10,7 @@ Pointer chain (each step is one pointer read):
 
 Usage:
 
-    pip install pymem psutil
+    pip install pymem
     python manager_uid.py        # prints one UID line; no arguments
 
 The game must be running with a save loaded, otherwise the script reports
