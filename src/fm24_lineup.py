@@ -74,14 +74,14 @@ def select_lineup(
     return sorted(lineup, key=lambda entry: slots.index(entry[0]))
 
 
-def predict_apa(player: Player, settings: GrowthSettings) -> float:
-    """Project CA to max_age, capped by PA."""
+def predict_apa(player: Player, settings: GrowthSettings) -> int:
+    """Project CA to max_age, rounded to an integer and capped by PA."""
     age = player["age"]
     ca = player["ca"]
     if age is None or age >= settings.max_age:
-        return float(ca)
+        return ca
     projected = ca + settings.monthly_gain * 12 * (settings.max_age - age)
-    return min(player["pa"], projected)
+    return min(player["pa"], round(projected))
 
 
 def build_lineups(
@@ -118,7 +118,7 @@ def format_lineups(
             positions = "/".join(player["positions"]) or "-"
             lines.append(
                 f"{slot:<5}{str(player['name']):<28}{age_text:>5}"
-                f"{player['ca']:>4}{player['apa']:>7.1f}  {positions}"
+                f"{player['ca']:>4}{player['apa']:>7}  {positions}"
             )
         lines.append("")
     return "\n".join(lines).rstrip()

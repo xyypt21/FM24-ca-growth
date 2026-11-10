@@ -98,6 +98,11 @@ class PredictApaTest(unittest.TestCase):
             predict_apa(player(1, 100, 150, ["ST"], age=16.0), SETTINGS), 150
         )
 
+    def test_projection_is_rounded_to_an_integer(self) -> None:
+        self.assertEqual(
+            predict_apa(player(1, 127, 200, ["ST"], age=21.3), SETTINGS), 168
+        )
+
     def test_projection_below_pa_is_not_capped(self) -> None:
         self.assertEqual(
             predict_apa(player(1, 100, 200, ["ST"], age=22.0), SETTINGS), 124
