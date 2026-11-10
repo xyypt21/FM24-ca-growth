@@ -10,12 +10,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fm24_players import (  # noqa: E402
+    all_players,
     calc_age,
     game_date,
     parse_game_date,
     players_in_team,
     read_string,
-    team_players,
 )
 
 BASE = 0x140000000
@@ -63,6 +63,7 @@ CONFIG = {
         "pa": 0x202,
         "record_read": RECORD_READ,
         "layouts": LAYOUTS,
+        "positions": {"GK": 0x208, "ST": 0x214},
     },
     "game_date": {"rva": 0x2000},
     "read": {
@@ -182,10 +183,12 @@ class PlayerReadTest(unittest.TestCase):
             players[0],
             {
                 "address": PLAYER,
+                "team_uid": TEAM_UID,
                 "name": "(unknown)",
                 "ca": 136,
                 "pa": 150,
                 "age": 24.0,
+                "positions": [],
             },
         )
 
@@ -237,6 +240,18 @@ class PlayerReadTest(unittest.TestCase):
         self.assertEqual(players[0]["ca"], 90)
         self.assertEqual(players[0]["pa"], 110)
 
+    def test_reads_positions_from_the_record(self) -> None:
+        record = bytearray(make_record(136, 150))
+        record[0x208] = 20
+        record[0x214] = 14
+        memory = team_memory(
+            [TEAM],
+            vectors={TEAM + 0x38: [PLAYER]},
+            blobs={PLAYER: bytes(record)},
+        )
+        players = players_in_team(memory, TEAM)
+        self.assertEqual(players[0]["positions"], ["GK"])
+
     def test_groups_players_by_controlled_team_uid(self) -> None:
         memory = team_memory(
             [TEAM, YOUTH_TEAM],
@@ -249,9 +264,11 @@ class PlayerReadTest(unittest.TestCase):
                 OTHER_RECORD: make_record(90, 110),
             },
         )
-        teams = team_players(memory)
-        self.assertEqual([uid for uid, _ in teams], [TEAM_UID, YOUTH_UID])
-        self.assertEqual([players[0]["ca"] for _, players in teams], [136, 90])
+        players = all_players(memory)
+        self.assertEqual(
+            [player["team_uid"] for player in players], [TEAM_UID, YOUTH_UID]
+        )
+        self.assertEqual([player["ca"] for player in players], [136, 90])
 
 
 class DateTest(unittest.TestCase):

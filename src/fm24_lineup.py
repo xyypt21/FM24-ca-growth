@@ -42,32 +42,7 @@ SLOTS = (
     "AMR",
     "ST",
 )
-POSITION_MIN = 15
 OUTPUT = Path(__file__).resolve().parents[1] / "output" / "lineup.csv"
-
-
-def read_positions(memory: Memory, address: int) -> list[str]:
-    """Return the positions this player can play (rating 15 or above)."""
-    offsets: dict[str, int] = memory.config["player"].get("positions", {})
-    if not offsets:
-        return []
-
-    record = memory.read_bytes(address, max(offsets.values()) + 1)
-    if not record:
-        return []
-    return [
-        position
-        for position, offset in offsets.items()
-        if offset < len(record) and record[offset] >= POSITION_MIN
-    ]
-
-
-def load_players(memory: Memory) -> list[Player]:
-    """Read every unique player from the controlled teams, with positions."""
-    return [
-        {**player, "positions": read_positions(memory, player["address"])}
-        for player in all_players(memory)
-    ]
 
 
 def score(player: Player) -> tuple[int, int]:
@@ -150,7 +125,7 @@ def write_lineup(lineup: list[tuple[str, Player, bool]], path: Path = OUTPUT) ->
 def run_once(config: Config) -> Path:
     """Read the squads, pick a lineup, print it, and write the CSV."""
     with Memory.open(config) as memory:
-        players = load_players(memory)
+        players = all_players(memory)
     if len(players) < len(SLOTS):
         raise RuntimeError(
             f"Only {len(players)} players found; need at least {len(SLOTS)}"

@@ -8,20 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from fm24_lineup import SLOTS, read_positions, select_lineup  # noqa: E402
-
-
-class FakeMemory:
-    """Minimal memory stand-in exposing one record blob."""
-
-    def __init__(self, record: bytes):
-        self.record = record
-        self.config = {"player": {"positions": {"GK": 0x208, "DL": 0x20A, "ST": 0x214}}}
-
-    def read_bytes(self, address: int, size: int) -> bytes | None:
-        if len(self.record) < size:
-            return None
-        return self.record[:size]
+from fm24_lineup import SLOTS, select_lineup  # noqa: E402
 
 
 def player(
@@ -71,17 +58,6 @@ class SelectLineupTest(unittest.TestCase):
         self.assertEqual(len(lineup), 11)
         self.assertTrue(all(not exact for _, _, exact in lineup))
         self.assertEqual(lineup[0][1]["address"], 11)
-
-
-class ReadPositionsTest(unittest.TestCase):
-    def test_reads_positions_above_threshold(self) -> None:
-        record = bytearray(0x215)
-        record[0x208] = 20
-        record[0x214] = 14
-        self.assertEqual(read_positions(FakeMemory(bytes(record)), 0), ["GK"])
-
-    def test_missing_record_returns_empty(self) -> None:
-        self.assertEqual(read_positions(FakeMemory(b""), 0), [])
 
 
 if __name__ == "__main__":

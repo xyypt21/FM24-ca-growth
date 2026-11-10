@@ -26,6 +26,7 @@ from fm24_memory import Memory
 from fm24_team import club_teams
 
 Player = dict[str, object]
+POSITION_MIN = 15
 
 
 def parse_game_date(value: int) -> datetime.date | None:
@@ -125,17 +126,19 @@ def read_u16(record: bytes, offset: int) -> int:
 
 def players_in_team(
     memory: Memory, team: int, today: datetime.date | None = None
-) -> list[dict[str, object]]:
+) -> list[Player]:
     """Read every player record in a team; records that are not players are skipped."""
     player_cfg = memory.config["player"]
     person_cfg = memory.config["person"]
     layouts: dict[int, int] = player_cfg["layouts"]
+    positions_cfg: dict[str, int] = player_cfg.get("positions", {})
     record_size = player_cfg["record_read"]
+    team_uid = memory.read_u32(team + memory.config["team"]["uid_off"]) or 0
 
     if today is None:
         today = game_date(memory)
 
-    players: list[dict[str, object]] = []
+    players: list[Player] = []
     for address in memory.read_ptr_vector(
         team + memory.config["team"]["roster_begin"], "team roster"
     ):
@@ -153,6 +156,7 @@ def players_in_team(
         players.append(
             {
                 "address": address,
+                "team_uid": team_uid,
                 "name": read_name(memory, person) or "(unknown)",
                 "ca": read_u16(record, player_cfg["ca"]),
                 "pa": read_u16(record, player_cfg["pa"]),
@@ -161,31 +165,23 @@ def players_in_team(
                     read_u16(person, person_cfg["birth_doy"]),
                     today,
                 ),
+                "positions": [
+                    code
+                    for code, offset in positions_cfg.items()
+                    if offset < len(record) and record[offset] >= POSITION_MIN
+                ],
             }
         )
     return players
-
-
-def team_players(
-    memory: Memory,
-) -> list[tuple[int, list[dict[str, object]]]]:
-    """Return (team UID, players) for every team controlled by the manager."""
-    uid_off = memory.config["team"]["uid_off"]
-    today = game_date(memory)
-    teams: list[tuple[int, list[dict[str, object]]]] = []
-    for team in club_teams(memory):
-        uid = memory.read_u32(team + uid_off)
-        if uid:
-            teams.append((uid, players_in_team(memory, team, today)))
-    return teams
 
 
 def all_players(memory: Memory) -> list[Player]:
     """Return every unique player across all controlled teams."""
     players: list[Player] = []
     seen: set[int] = set()
-    for _, roster in team_players(memory):
-        for player in roster:
+    today = game_date(memory)
+    for team in club_teams(memory):
+        for player in players_in_team(memory, team, today):
             address = player["address"]
             if address in seen:
                 continue
@@ -194,14 +190,12 @@ def all_players(memory: Memory) -> list[Player]:
     return players
 
 
-def read_players(
-    config: Config | None = None,
-) -> list[tuple[int, list[dict[str, object]]]]:
+def read_players(config: Config | None = None) -> list[Player]:
     """Open the game process and read every player in every controlled team."""
     if config is None:
         config = load_config()
     with Memory.open(config) as memory:
-        return team_players(memory)
+        return all_players(memory)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -210,17 +204,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.parse_args(argv)
 
     try:
-        teams = read_players()
+        players = read_players()
     except RuntimeError as error:
         print(f"Error: {error}")
         return 1
 
-    for index, (uid, players) in enumerate(teams):
+    groups: dict[int, list[Player]] = {}
+    for player in players:
+        groups.setdefault(player["team_uid"], []).append(player)
+
+    for index, (uid, roster) in enumerate(groups.items()):
         if index:
             print()
         print(f"Team {uid}")
         print("Name\tCA\tPA\tAge")
-        for player in players:
+        for player in roster:
             age = player["age"]
             age_text = "-" if age is None else f"{age:.1f}"
             print(f"{player['name']}\t{player['ca']}\t{player['pa']}\t{age_text}")
