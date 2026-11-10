@@ -4,9 +4,8 @@ Usage:
 
     python scripts/build_exe.py
 
-Works with normal CPython and with Python builds that ship Tcl 9 inside zip
-files (for example Python 3.14+), where PyInstaller needs the Tcl/Tk data
-added explicitly.
+Requires PyInstaller 6.22 or newer, which can bundle Tcl/Tk 9 data from
+python.org Windows builds of Python 3.15.
 """
 
 from __future__ import annotations
@@ -15,8 +14,6 @@ import argparse
 import shutil
 import subprocess
 import sys
-import tempfile
-import tkinter
 import zipfile
 from pathlib import Path
 
@@ -54,28 +51,6 @@ EXCLUDES = (
 )
 
 
-def tcl_zip_data(temp_dir: Path) -> list[str]:
-    """Return --add-data arguments for Python builds using Tcl 9 zip files."""
-    tcl_library = tkinter.Tcl().eval("info library")
-    if not tcl_library.startswith("//zipfs:"):
-        return []
-
-    tcl_root = Path(sys.executable).resolve().parent / "tcl"
-    zip_tcl = next(iter(tcl_root.glob("libtcl*.zip")), None)
-    zip_tk = next(iter(tcl_root.glob("libtk*.zip")), None)
-    if zip_tcl is None or zip_tk is None:
-        raise RuntimeError(f"Cannot find libtcl*.zip or libtk*.zip in {tcl_root}")
-
-    for archive in (zip_tcl, zip_tk):
-        with zipfile.ZipFile(archive) as file:
-            file.extractall(temp_dir)
-
-    return [
-        f"{temp_dir / 'tcl_library'};_tcl_data",
-        f"{temp_dir / 'tk_library'};_tk_data",
-    ]
-
-
 def build(name: str) -> None:
     """Run PyInstaller, copy the config files, and create the release zip."""
     arguments = [
@@ -92,15 +67,12 @@ def build(name: str) -> None:
     for module in EXCLUDES:
         arguments += ["--exclude-module", module]
 
-    with tempfile.TemporaryDirectory() as directory:
-        for entry in tcl_zip_data(Path(directory)):
-            arguments += ["--add-data", entry]
-        arguments += [
-            "--name",
-            name,
-            str(ROOT / "src" / "fm24_ca_growth_gui.pyw"),
-        ]
-        subprocess.run(arguments, cwd=ROOT, check=True)
+    arguments += [
+        "--name",
+        name,
+        str(ROOT / "src" / "fm24_ca_growth_gui.pyw"),
+    ]
+    subprocess.run(arguments, cwd=ROOT, check=True)
 
     for config_file in ("offsets.toml", "config.json"):
         shutil.copy2(ROOT / "src" / config_file, DIST / config_file)

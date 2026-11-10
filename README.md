@@ -164,14 +164,14 @@ reads them from its own folder and writes `config.json` there.
 To build locally:
 
 ```powershell
-python -m pip install pymem pyinstaller
+python -m pip install pymem "pyinstaller>=6.22"
 python scripts/build_exe.py
 ```
 
-The script excludes unused standard-library modules (about 11 MB output instead
-of 15 MB) and handles Python builds that ship Tcl 9 inside zip files by adding
-the extracted Tcl/Tk data to the exe. The workflow uses Python 3.15 and the same
-script, so local and CI builds stay identical.
+PyInstaller 6.22+ bundles Tcl/Tk 9 data from Python 3.15 automatically. The
+script excludes unused standard-library modules (about 11 MB output instead of
+15 MB). The workflow uses Python 3.15 and the same script, so local and CI
+builds stay identical.
 
 ## Pointer chain
 
