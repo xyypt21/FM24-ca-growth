@@ -98,7 +98,7 @@ team UID 920                            -> 0xFC221600 (see above)
         read pointer -> 0x1038E63A8        player record (Leo Greiml)
 
 0x1038E63A8
-        read u32     -> 0x45A4E958         record magic -> person at +0x278
+        read u32     -> 0x45A4E958         record type tag -> person at +0x278
 
 0x1038E63A8
   + ca 0x200
@@ -140,14 +140,14 @@ exe base 0x140000000
         read u32     -> 0x07E9005B         in-game date 2025-04-01
 ```
 
-A record whose magic is not in `[player.layouts]` is not a player record and is
-skipped. The short name is preferred when present; this player has none, so the
-name comes from first name + last name.
+A record whose type tag is not in `[player.layouts]` is not a player record and
+is skipped. The short name is preferred when present; this player has none, so
+the name comes from first name + last name.
 
-The record magic is the 4-byte type tag at the start of the record. It is not a
+The record type tag is the 4-byte tag at the start of the record. It is not a
 pointer and not part of the person data; it selects the record layout:
 
-| Magic | Meaning | Person offset |
+| Tag | Meaning | Person offset |
 |---|---|---|
 | `0x45A4E958` | Normal player | `+0x278` |
 | `0x45C7E798` | Player who is also staff | `+0x368` |

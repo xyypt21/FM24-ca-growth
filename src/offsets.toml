@@ -71,7 +71,7 @@ pa = 0x202
 record_read = 0x3D8
 
 
-# Record magic -> person sub-object offset. The 4-byte tag at the start of a
+# Record type tag -> person sub-object offset. The 4-byte tag at the start of a
 # player record selects the layout. It is a type tag, not a pointer.
 #   0x45A4E958 -> normal player record, person at +0x278
 #   0x45C7E798 -> player who is also staff, person at +0x368

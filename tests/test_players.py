@@ -34,10 +34,10 @@ FIRST_STRING = 0xB0001000
 LAST_STRING = 0xB0002000
 TEAM_UID = 920
 YOUTH_UID = 2000069496
-MAGIC_PLAYER = 0x45A4E958
-MAGIC_PLAYER_STAFF = 0x45C7E798
+PLAYER_TAG = 0x45A4E958
+PLAYER_STAFF_TAG = 0x45C7E798
 RECORD_READ = 0x3D8
-LAYOUTS = {MAGIC_PLAYER: 0x278, MAGIC_PLAYER_STAFF: 0x368}
+LAYOUTS = {PLAYER_TAG: 0x278, PLAYER_STAFF_TAG: 0x368}
 TODAY_VALUE = (2025 << 16) | 91  # 2025-04-01
 
 CONFIG = {
@@ -118,7 +118,7 @@ def game_string(text: str) -> bytes:
 def make_record(
     ca: int,
     pa: int,
-    magic: int = MAGIC_PLAYER,
+    tag: int = PLAYER_TAG,
     year: int = 2001,
     day_of_year: int = 91,
     short: int = 0,
@@ -127,10 +127,10 @@ def make_record(
 ) -> bytes:
     """Build a player record with CA/PA, birth date, and name pointers."""
     record = bytearray(RECORD_READ)
-    record[0:4] = magic.to_bytes(4, "little")
+    record[0:4] = tag.to_bytes(4, "little")
     record[0x200:0x202] = ca.to_bytes(2, "little")
     record[0x202:0x204] = pa.to_bytes(2, "little")
-    person = LAYOUTS[magic]
+    person = LAYOUTS[tag]
     record[person + 0x44 : person + 0x46] = day_of_year.to_bytes(2, "little")
     record[person + 0x46 : person + 0x48] = year.to_bytes(2, "little")
     record[person + 0x58 : person + 0x60] = first.to_bytes(8, "little")
@@ -219,12 +219,12 @@ class PlayerReadTest(unittest.TestCase):
         )
         self.assertEqual(players_in_team(memory, TEAM)[0]["name"], "Assan Ouédraogo")
 
-    def test_staff_magic_uses_its_own_person_offset(self) -> None:
+    def test_staff_tag_uses_its_own_person_offset(self) -> None:
         memory = team_memory(
             [TEAM],
             vectors={TEAM + 0x38: [PLAYER]},
             blobs={
-                PLAYER: make_record(90, 110, magic=MAGIC_PLAYER_STAFF, year=1990),
+                PLAYER: make_record(90, 110, tag=PLAYER_STAFF_TAG, year=1990),
             },
         )
         players = players_in_team(memory, TEAM)

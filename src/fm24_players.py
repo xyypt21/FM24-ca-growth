@@ -2,7 +2,7 @@
 
     club teams                    -> every team controlled by the human manager
     team + roster_begin           -> player record pointer array
-    record + 0                     -> record magic (record type tag; selects the layout)
+    record + 0                     -> record type tag (selects the layout)
     record + ca / pa              -> current / potential ability (u16)
     record + layout person offset -> person sub-object
     person + short_name / ...     -> name holder pointers -> [u32][utf-8] string
@@ -141,8 +141,8 @@ def players_in_team(
         if not record or len(record) < record_size:
             continue
 
-        # The first 4 bytes are a record type tag (magic), not a pointer and not
-        # part of the person data. It tells us where the person sub-object starts.
+        # The first 4 bytes are a record type tag, not a pointer and not part of
+        # the person data. It tells us where the person sub-object starts.
         person_offset = layouts.get(int.from_bytes(record[:4], "little"))
         if person_offset is None:
             continue

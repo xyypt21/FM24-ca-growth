@@ -72,13 +72,13 @@ Names prefer the short name and fall back to first name + last name. Age is
 calculated from the in-game date, not from the system clock. Roster records that
 are not player records are skipped.
 
-### Record magic
+### Record type tag
 
-"Record magic" is the 4-byte type tag at the very start of each roster record.
+The record type tag is the 4-byte tag at the very start of each roster record.
 It is not a pointer and not part of the person data; it only says which record
 layout this is, and therefore where the person sub-object starts:
 
-| Magic | Meaning | Person offset |
+| Tag | Meaning | Person offset |
 |---|---|---|
 | `0x45A4E958` | Normal player | `+0x278` |
 | `0x45C7E798` | Player who is also staff | `+0x368` |
@@ -103,7 +103,7 @@ exe + manager.container_rva   -> manager container
       each team + uid_off     -> team UID (u32)
 
       team + roster_begin     -> player record pointers
-      record + 0              -> record type tag (magic; selects the layout)
+      record + 0              -> record type tag (selects the layout)
       record + ca / pa        -> current / potential ability (u16)
       record + layout offset  -> person sub-object
       person + short_name / first_name / last_name -> name string

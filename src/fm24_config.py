@@ -39,7 +39,7 @@ def load_config(path: Path = CONFIG_PATH) -> Config:
     if missing:
         raise RuntimeError(f"Offsets file {path} is missing: {', '.join(missing)}")
 
-    # TOML keys are strings, but record magics are numbers in the code.
+    # TOML keys are strings, but record type tags are numbers in the code.
     layouts = config["player"].get("layouts", {})
     try:
         config["player"]["layouts"] = {
