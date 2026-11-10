@@ -147,6 +147,7 @@ pythonw src/fm24_ca_growth_gui.pyw
   - `start_age < age < end_age`: the ratio rises linearly to `end_ratio`
   - `end_age <= age < max_age`: cap is PA (ratio 1.0)
   - `age >= max_age`: no CA growth
+- **Exit** saves the settings, stops the watcher, and closes the window.
 - Startup and save reload still print the automatic preview into the log.
 
 ## Build a Windows exe

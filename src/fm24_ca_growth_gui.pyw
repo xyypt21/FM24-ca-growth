@@ -105,8 +105,9 @@ class GrowthGui:
             side="left", padx=(0, 6)
         )
         ttk.Button(controls, text="Clear log", command=self._clear_log).pack(
-            side="left"
+            side="left", padx=(0, 6)
         )
+        ttk.Button(controls, text="Exit", command=self._on_close).pack(side="left")
 
         self.status_var = tk.StringVar(value="Idle")
         ttk.Label(controls, textvariable=self.status_var).pack(side="right", padx=4)
