@@ -207,6 +207,5 @@ Reads one position rating byte per position from the player record. A rating of
         read u8      -> 12                 cannot play ST
 ```
 
-The lineup selector fills the most constrained slot first, ranked by CA and then
-PA. Slots with no eligible player left are filled by the best remaining player
-and marked as out of position.
+The lineup selector fills 22 slots at once: the first 11 are the first XI and
+the next 11 the second XI, ranked by CA and then PA.

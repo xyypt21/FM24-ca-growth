@@ -152,43 +152,35 @@ pythonw src/fm24_ca_growth_gui.pyw
 
 ## Pick a lineup
 
-Build a 4-3-3 from every controlled team, ranked by CA and then PA:
+Build a first and second 4-3-3 from every controlled team with scipy's
+assignment solver:
 
 ```powershell
-python src/fm24_lineup.py --once   # one lineup, then exit
+python src/fm24_lineup.py --once   # one run, then exit
 python src/fm24_lineup.py          # refresh every 30 seconds until Ctrl+C
 ```
 
 Example:
 
 ```text
+First XI
 Slot Name                          Age  CA  PA  Positions
 GK   Marius Müller                30.0 126 132  GK
 DL   Brandon Soppy                21.3 127 149  DL/DR/MR/WBL/WBR
-DC   Timo Baumgartl               27.3 120 132  DC
+...
+
+Second XI
+Slot Name                          Age  CA  PA  Positions
+GK   Ralf Fährmann                34.8 118 148  GK
 ...
 ```
 
 - CA is the primary score; PA breaks ties.
 - Positions are read from the player record (`>= 15` can play the slot).
-- The most constrained slot is filled first.
-- If no remaining player can play a slot, the best remaining player fills it
-  and is marked with `*` in the console / `Exact = no` in the CSV.
-- The lineup is printed and written to `output/lineup.csv`.
-
-## First and second XI
-
-Use scipy's assignment solver to fill both teams at once:
-
-```powershell
-python src/fm24_best_eleven.py
-```
-
-- CA is the primary score; PA breaks ties.
-- The first 11 slots form the first XI, the next 11 the second XI.
-- One assignment fills both teams, so the first XI cannot starve the second.
-- Positions come from the player record (`>= 15`).
-- The result is printed and written to `output/best_eleven.csv` with columns
+- The matrix has 22 columns: 11 first-XI slots plus 11 second-XI slots, so one
+  assignment fills both teams without starving the second.
+- Same-position players are ordered so the higher rating goes to the first XI.
+- The lineups are printed and written to `output/lineup.csv` with columns
   `Squad`, `Slot`, `Name`, `Age`, `CA`, `PA`, `Positions`.
 
 ## Build a Windows exe
@@ -256,8 +248,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_manager.py` | Manager lookup, manager UID chain, and command-line entry point |
 | `src/fm24_team.py` | All controlled team UIDs and command-line entry point |
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
-| `src/fm24_lineup.py` | Best 4-3-3 lineup by CA/PA and positions |
-| `src/fm24_best_eleven.py` | First and second XI with scipy assignment |
+| `src/fm24_lineup.py` | First and second 4-3-3 lineups with scipy assignment |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_ca_growth_gui.pyw` | Tkinter GUI for the CA growth watcher |
 | `.github/workflows/build-exe.yml` | Build the Windows exe on GitHub Actions |

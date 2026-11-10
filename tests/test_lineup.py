@@ -1,4 +1,4 @@
-"""Unit tests for lineup selection (no game process needed)."""
+"""Unit tests for the scipy first/second lineup selector."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from fm24_lineup import SLOTS, select_lineup  # noqa: E402
+from fm24_lineup import SLOTS, rating, select_lineups  # noqa: E402
 
 
 def player(
@@ -16,12 +16,12 @@ def player(
     ca: int,
     pa: int,
     positions: list[str],
-    name: str = "Player",
 ) -> dict[str, object]:
-    """Return a player dict with the fields used by the lineup selector."""
+    """Return a player dict with the fields used by the selector."""
     return {
         "address": address,
-        "name": name,
+        "team_uid": 1,
+        "name": f"Player {address}",
         "ca": ca,
         "pa": pa,
         "age": 20.0,
@@ -30,34 +30,50 @@ def player(
 
 
 def full_squad() -> list[dict[str, object]]:
-    """Return one player for every slot, all with distinct CA values."""
-    squad = []
-    for index, slot in enumerate(SLOTS):
-        squad.append(player(index + 1, 100 + index, 120 + index, [slot], slot))
-    return squad
+    """Two candidates for every slot occurrence."""
+    players = []
+    address = 1
+    for slot in SLOTS:
+        for ca in (200, 100):
+            players.append(player(address, ca, ca + 10, [slot]))
+            address += 1
+    return players
 
 
-class SelectLineupTest(unittest.TestCase):
-    def test_fills_every_slot_with_an_eligible_player(self) -> None:
-        lineup = select_lineup(full_squad())
-        self.assertEqual([slot for slot, _, _ in lineup], list(SLOTS))
-        self.assertTrue(all(exact for _, _, exact in lineup))
+class SelectLineupsTest(unittest.TestCase):
+    def test_builds_two_full_squads(self) -> None:
+        lineups = select_lineups(full_squad())
 
-    def test_uses_pa_as_tie_break(self) -> None:
-        players = [
-            player(1, 150, 160, ["GK"]),
-            player(2, 150, 180, ["GK"]),
-            *full_squad()[1:],
-        ]
-        lineup = select_lineup(players)
-        self.assertEqual(lineup[0][1]["address"], 2)
+        self.assertEqual([len(lineup) for lineup in lineups], [11, 11])
+        addresses = [player["address"] for lineup in lineups for _, player in lineup]
+        self.assertEqual(len(addresses), len(set(addresses)))
 
-    def test_falls_back_to_best_remaining_player(self) -> None:
-        players = [player(index + 1, 100 + index, 150, ["MC"]) for index in range(11)]
-        lineup = select_lineup(players)
-        self.assertEqual(len(lineup), 11)
-        self.assertTrue(all(not exact for _, _, exact in lineup))
-        self.assertEqual(lineup[0][1]["address"], 11)
+    def test_best_players_go_to_the_first_xi(self) -> None:
+        lineups = select_lineups(full_squad())
+
+        self.assertTrue(all(player["ca"] == 200 for _, player in lineups[0]))
+        self.assertTrue(all(player["ca"] == 100 for _, player in lineups[1]))
+
+    def test_raises_when_positions_cannot_be_filled(self) -> None:
+        players = [player(index, 100, 120, ["MC"]) for index in range(1, 23)]
+        with self.assertRaisesRegex(RuntimeError, "No eligible"):
+            select_lineups(players)
+
+    def test_raises_when_there_are_too_few_players(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "at least"):
+            select_lineups(full_squad()[:21])
+
+
+class RatingTest(unittest.TestCase):
+    def test_pa_breaks_ca_ties(self) -> None:
+        self.assertGreater(
+            rating(player(1, 150, 180, ["ST"])),
+            rating(player(2, 150, 160, ["ST"])),
+        )
+        self.assertGreater(
+            rating(player(1, 151, 151, ["ST"])),
+            rating(player(2, 150, 200, ["ST"])),
+        )
 
 
 if __name__ == "__main__":
