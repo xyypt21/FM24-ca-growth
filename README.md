@@ -89,12 +89,6 @@ roster without a person/name) and is skipped.
 
 ## Grow CA every in-game month
 
-Preview the plan without writing anything:
-
-```powershell
-python src/fm24_ca_growth.py --preview
-```
-
 Run the watcher:
 
 ```powershell

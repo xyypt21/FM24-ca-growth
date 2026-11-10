@@ -12,8 +12,7 @@ changes; starting on the 1st does not trigger an immediate settlement.
 
 Usage:
 
-    python src/fm24_ca_growth.py            # run until Ctrl+C
-    python src/fm24_ca_growth.py --preview  # show the plan; write nothing
+    python src/fm24_ca_growth.py    # run until Ctrl+C
 
 Settings live in ``config.json``: monthly gain, max age, and age-based PA caps.
 The game must be running with a save loaded. This script WRITES to game memory,
@@ -22,7 +21,6 @@ unlike the reader commands. Run it at the same privilege level as the game.
 
 from __future__ import annotations
 
-import argparse
 import datetime
 import time
 from collections.abc import Iterable
@@ -182,16 +180,6 @@ def show_plan(memory: Memory, today: datetime.date, settings: GrowthSettings) ->
     return True
 
 
-def preview(memory: Memory, settings: GrowthSettings) -> int:
-    """Show the current plan without writing to game memory."""
-    today = game_date(memory)
-    if today is None:
-        raise RuntimeError("Cannot read the in-game date")
-    if not show_plan(memory, today, settings):
-        raise RuntimeError("No players found: save not loaded or wrong offsets")
-    return 0
-
-
 def watch(memory: Memory, settings: GrowthSettings) -> int:
     """Settle once per new in-game month until interrupted.
 
@@ -255,24 +243,12 @@ def watch(memory: Memory, settings: GrowthSettings) -> int:
         print(f"{now}: wrote {len(written)} players.")
 
 
-def main(argv: list[str] | None = None) -> int:
+def main() -> int:
     """Command-line entry point."""
-    parser = argparse.ArgumentParser(
-        description="Add CA to every controlled player once per in-game month."
-    )
-    parser.add_argument(
-        "--preview",
-        action="store_true",
-        help="show the planned changes for the current date and exit",
-    )
-    args = parser.parse_args(argv)
-
     try:
         config: Config = load_config()
         settings = load_growth_settings()
         with Memory.open(config) as memory:
-            if args.preview:
-                return preview(memory, settings)
             return watch(memory, settings)
     except KeyboardInterrupt:
         print("Stopped.")
