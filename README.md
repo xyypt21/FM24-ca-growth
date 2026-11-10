@@ -67,9 +67,9 @@ concrete walkthrough with real addresses and values.
 
 | File | Responsibility |
 |---|---|
-| `src/manager_uid.py` | Command-line entry point for the manager UID |
-| `src/team_uid.py` | Command-line entry point for the team UID |
-| `src/fm24_memory.py` | Process access, low-level reads, and manager/team pointer chains |
+| `src/manager_uid.py` | Manager UID pointer chain and command-line entry point |
+| `src/team_uid.py` | Team UID pointer chain and command-line entry point |
+| `src/fm24_memory.py` | Process access, low-level reads, and shared manager lookup |
 | `src/fm24_config.py` | Load and validate `offsets.toml` |
 | `src/offsets.toml` | FM24 memory offsets |
 | `tests/` | Unit tests (no game process required) |
