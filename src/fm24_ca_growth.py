@@ -149,10 +149,22 @@ def settle_month(memory: Memory, settings: GrowthSettings) -> list[Change]:
     return written
 
 
-def print_plan(
-    today: datetime.date, changes: list[Change], settings: GrowthSettings
-) -> None:
-    """Print the planned changes sorted by age, youngest first."""
+def show_plan(memory: Memory, today: datetime.date, settings: GrowthSettings) -> bool:
+    """Read the roster, print the next settlement plan, and write nothing.
+
+    Changes are sorted by age, youngest first. Returns False when players
+    cannot be read, so the watcher can keep running.
+    """
+    try:
+        players = controlled_players(memory)
+    except RuntimeError as error:
+        print(f"Cannot read players for preview ({error}).")
+        return False
+    if not players:
+        print("No players readable for preview.")
+        return False
+
+    changes = growth_plan(players, settings)
     print(f"Planned CA changes for {today} (+{settings.monthly_gain} CA):")
     ordered = sorted(
         changes, key=lambda change: (change.age is None, change.age or 0.0)
@@ -164,19 +176,6 @@ def print_plan(
             f"{change.new_ca:>3}  PA {change.pa:>3}  cap {change.cap:>3}"
         )
     print(f"  {len(changes)} players.")
-
-
-def show_plan(memory: Memory, today: datetime.date, settings: GrowthSettings) -> bool:
-    """Print the next settlement plan without writing; return False if unreadable."""
-    try:
-        players = controlled_players(memory)
-    except RuntimeError as error:
-        print(f"Cannot read players for preview ({error}).")
-        return False
-    if not players:
-        print("No players readable for preview.")
-        return False
-    print_plan(today, growth_plan(players, settings), settings)
     return True
 
 

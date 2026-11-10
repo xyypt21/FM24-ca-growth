@@ -19,7 +19,6 @@ from fm24_ca_growth import (  # noqa: E402
     growth_plan,
     growth_target,
     month_key,
-    print_plan,
     settle_month,
     show_plan,
 )
@@ -294,26 +293,11 @@ class GrowthPlanTest(unittest.TestCase):
         self.assertEqual(len(changes), 1)
 
 
-class PrintPlanTest(unittest.TestCase):
-    def test_sorts_by_age_youngest_first(self) -> None:
-        changes = [
-            Change("Older", 1, 100, 102, 150, 150, 25.0),
-            Change("Younger", 2, 100, 102, 150, 135, 18.0),
-        ]
-        output = io.StringIO()
-        with redirect_stdout(output):
-            print_plan(datetime.date(2025, 4, 1), changes, SETTINGS)
-
-        lines = output.getvalue().splitlines()
-        self.assertIn("Younger", lines[1])
-        self.assertIn("Older", lines[2])
-        self.assertIn("cap 135", lines[1])
-
-
 class ShowPlanTest(unittest.TestCase):
-    def test_preview_does_not_write(self) -> None:
-        memory = memory_with_players([(TEAM, [PLAYER])])
-        memory.blobs[PLAYER] = record(100, 150)
+    def test_preview_does_not_write_and_sorts_by_age(self) -> None:
+        memory = memory_with_players([(TEAM, [PLAYER, PLAYER_AT_PA])])
+        memory.blobs[PLAYER] = record(100, 150, year=2008)
+        memory.blobs[PLAYER_AT_PA] = record(100, 150, year=2003)
 
         output = io.StringIO()
         with redirect_stdout(output):
@@ -321,8 +305,11 @@ class ShowPlanTest(unittest.TestCase):
 
         self.assertTrue(ok)
         self.assertEqual(memory.written, {})
-        self.assertIn("Planned CA changes", output.getvalue())
-        self.assertIn("1 players.", output.getvalue())
+        lines = output.getvalue().splitlines()
+        younger = next(i for i, line in enumerate(lines) if "age 16." in line)
+        older = next(i for i, line in enumerate(lines) if "age 21." in line)
+        self.assertLess(younger, older)
+        self.assertIn("2 players.", output.getvalue())
 
 
 class SettleMonthTest(unittest.TestCase):
