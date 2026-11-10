@@ -9,6 +9,7 @@ description = "FM24 memory tooling: human manager UID, teams, and players"
 requires-python = ">=3.11"  # tomllib is in the standard library from 3.11
 dependencies = [
     "pymem",  # process memory access and process lookup
+    "scipy",  # lineup assignment solver
 ]
 
 [tool.ruff]

@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pymem "pyinstaller>=6.22"
+          python -m pip install pymem scipy "pyinstaller>=6.22"
 
       - name: Run tests
         run: python -m unittest discover -s tests

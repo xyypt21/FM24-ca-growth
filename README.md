@@ -13,7 +13,7 @@ in-game month.
 ## Install
 
 ```powershell
-python -m pip install pymem
+python -m pip install pymem scipy
 ```
 
 ## Read the manager UID
@@ -176,6 +176,21 @@ DC   Timo Baumgartl               27.3 120 132  DC
   and is marked with `*` in the console / `Exact = no` in the CSV.
 - The lineup is printed and written to `output/lineup.csv`.
 
+## First and second XI
+
+Use scipy's assignment solver to fill both teams at once:
+
+```powershell
+python src/fm24_best_eleven.py
+```
+
+- CA is the primary score; PA breaks ties.
+- The first 11 slots form the first XI, the next 11 the second XI.
+- One assignment fills both teams, so the first XI cannot starve the second.
+- Positions come from the player record (`>= 15`).
+- The result is printed and written to `output/best_eleven.csv` with columns
+  `Squad`, `Slot`, `Name`, `Age`, `CA`, `PA`, `Positions`.
+
 ## Build a Windows exe
 
 GitHub Actions builds the GUI automatically:
@@ -242,6 +257,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_team.py` | All controlled team UIDs and command-line entry point |
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_lineup.py` | Best 4-3-3 lineup by CA/PA and positions |
+| `src/fm24_best_eleven.py` | First and second XI with scipy assignment |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_ca_growth_gui.pyw` | Tkinter GUI for the CA growth watcher |
 | `.github/workflows/build-exe.yml` | Build the Windows exe on GitHub Actions |
