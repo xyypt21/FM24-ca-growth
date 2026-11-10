@@ -71,7 +71,8 @@ def growth_cap(age: float, pa: int, caps: tuple[CapRule, ...]) -> int:
     """
     for rule in caps:
         if age < rule.below_age:
-            return min(pa, int(pa * rule.pa_ratio))
+            # Add a tiny epsilon so 180 * 0.7 -> 126.0, not 125.999... -> 125.
+            return min(pa, int(pa * rule.pa_ratio + 1e-9))
     return pa
 
 
