@@ -170,6 +170,11 @@ Copy-Item src/offsets.toml dist/
 Copy-Item src/config.json dist/
 ```
 
+The GitHub workflow uses Python 3.12, where PyInstaller bundles Tcl/Tk data
+automatically. Newer local Python builds may ship Tcl 9 inside zip files and
+produce an exe that cannot find `_tcl_data`; use Python 3.12 for local builds,
+or add the extracted `tcl_library`/`tk_library` folders with `--add-data`.
+
 ## Pointer chain
 
 ```text
