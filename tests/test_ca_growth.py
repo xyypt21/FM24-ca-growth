@@ -208,9 +208,10 @@ class GrowthCapTest(unittest.TestCase):
         self.assertEqual(growth_cap(21.9, 200, CAPS), 180)
         self.assertEqual(growth_cap(22.0, 200, CAPS), 200)
 
-    def test_float_ratio_does_not_round_down(self) -> None:
+    def test_ratio_uses_round(self) -> None:
         self.assertEqual(growth_cap(17.1, 180, CAPS), 126)
         self.assertEqual(growth_cap(17.1, 115, CAPS), 80)
+        self.assertEqual(growth_cap(20.0, 115, CAPS), 104)
 
     def test_cap_is_limited_by_pa(self) -> None:
         self.assertEqual(growth_cap(17.0, 100, CAPS), 70)

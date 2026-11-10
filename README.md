@@ -110,9 +110,9 @@ team. All growth settings are read together from `config.json`. Rules:
 - Only players younger than `max_age` grow (default **22**); a 21.9-year-old
   grows, a 22.0-year-old is skipped.
 - A player's CA is also capped by age bands from `cap`; with the default config:
-  - under 18: at most `PA × 0.7`
-  - under 20: at most `PA × 0.8`
-  - under 22: at most `PA × 0.9`
+  - under 18: `PA × 0.7`, rounded
+  - under 20: `PA × 0.8`, rounded
+  - under 22: `PA × 0.9`, rounded
   - 22 and older: no age cap beyond PA (but normally excluded by `max_age`)
 - Rosters, CA, PA, and record addresses are re-read on every settlement.
 - On startup and after a save reload it prints a preview of the players whose

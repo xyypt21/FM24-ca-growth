@@ -176,8 +176,8 @@ The write is verified by reading CA back. Players whose `CA + monthly_gain`
 (from `src/config.json`) would exceed the age cap are skipped, and CA is never
 clamped. Preview and settlement lines show the player's age, PA, and cap. Age
 caps from `config.json` are: under 18 -> `PA × 0.7`, under 20 -> `PA × 0.8`,
-under 22 -> `PA × 0.9`. Age is strict: with `max_age` 22, 21.9-year-olds grow
-and 22.0-year-olds are skipped.
+under 22 -> `PA × 0.9`, each rounded to the nearest integer. Age is strict: with
+`max_age` 22, 21.9-year-olds grow and 22.0-year-olds are skipped.
 
 Save reload detection
 
