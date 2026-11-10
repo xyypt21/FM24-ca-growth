@@ -25,7 +25,7 @@ from pathlib import Path
 
 from scipy.optimize import linear_sum_assignment
 
-from fm24_config import Config, load_config
+from fm24_config import load_config
 from fm24_memory import Memory
 from fm24_players import Player, all_players
 
@@ -58,24 +58,21 @@ def select_lineup(
             f"Only {len(players)} players found; need at least {len(slots)}"
         )
 
-    costs: list[list[int]] = []
-    for player in players:
-        positions = player["positions"]
-        costs.append(
-            [-player[metric] if slot in positions else FORBIDDEN for slot in slots]
-        )
-
+    costs = [
+        [
+            -player[metric] if slot in player["positions"] else FORBIDDEN
+            for slot in slots
+        ]
+        for player in players
+    ]
     player_rows, slot_columns = linear_sum_assignment(costs)
-    chosen: dict[int, tuple[str, Player]] = {}
+
+    lineup: list[tuple[str, Player]] = []
     for player_row, slot_column in zip(player_rows, slot_columns, strict=True):
         if costs[player_row][slot_column] >= FORBIDDEN:
             raise RuntimeError(f"No eligible player left for {slots[slot_column]}")
-        chosen[slot_column] = (slots[slot_column], players[player_row])
-
-    missing = [slot for index, slot in enumerate(slots) if index not in chosen]
-    if missing:
-        raise RuntimeError(f"Could not fill: {', '.join(missing)}")
-    return [chosen[index] for index in range(len(slots))]
+        lineup.append((slots[slot_column], players[player_row]))
+    return sorted(lineup, key=lambda entry: slots.index(entry[0]))
 
 
 def select_two_lineups(
@@ -146,17 +143,6 @@ def write_lineups(
                 )
 
 
-def run_once(config: Config) -> Path:
-    """Read the squads, build the four lineups, print them, and write the CSV."""
-    with Memory.open(config) as memory:
-        players = all_players(memory)
-    lineups = build_lineups(players)
-    print(format_lineups(lineups))
-    write_lineups(lineups)
-    print(f"\nWrote {OUTPUT}")
-    return OUTPUT
-
-
 def main(argv: list[str] | None = None) -> int:
     """Command-line entry point."""
     parser = argparse.ArgumentParser(
@@ -175,7 +161,12 @@ def main(argv: list[str] | None = None) -> int:
     try:
         while True:
             try:
-                run_once(config)
+                with Memory.open(config) as memory:
+                    players = all_players(memory)
+                lineups = build_lineups(players)
+                print(format_lineups(lineups))
+                write_lineups(lineups)
+                print(f"\nWrote {OUTPUT}")
             except RuntimeError as error:
                 print(f"Error: {error}")
                 if args.once:
