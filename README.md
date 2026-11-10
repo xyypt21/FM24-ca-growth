@@ -107,13 +107,13 @@ team. All growth settings are read together from `config.json`. Rules:
 
 - CA never grows above PA; players already at their potential are skipped.
 - Invalid CA/PA values (outside `1..200`, or CA above PA) are skipped.
-- Only players younger than `max_age` grow (default **22**); a 21.9-year-old
-  grows, a 22.0-year-old is skipped.
-- A player's CA is also capped linearly by `cap` from `config.json`. Below
-  `start_age` the cap is `PA × start_ratio`; above `end_age` it is
-  `PA × end_ratio`; in between the ratio interpolates linearly. With the
-  current config `(18, 0.7) -> (22, 0.9)`: age 18 -> 0.7, age 20 -> 0.8,
-  age 22 -> 0.9.
+- Players at or above `cap.end_age` do not grow; a 21.9-year-old grows and a
+  22.0-year-old is skipped when `end_age` is 22.
+- A player's CA is capped linearly by `cap` from `config.json`. At or below
+  `start_age` the cap is `PA × start_ratio`; between `start_age` and `end_age`
+  the ratio interpolates linearly towards `end_ratio`. With the current config
+  `(18, 0.7) -> (22, 0.9)`: age 18 -> 0.7, age 20 -> 0.8, just before 22 ->
+  0.9.
 - Rosters, CA, PA, and record addresses are re-read on every settlement.
 - On startup and after a save reload it prints a preview of the players whose
   CA will grow at the next settlement, sorted by age (youngest first); each
@@ -175,7 +175,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_memory.py` | Process access, low-level reads/writes, and pointer vectors |
-| `src/config.json` | Growth settings: `monthly_gain`, `max_age`, and age-band `cap` |
+| `src/config.json` | Growth settings: `monthly_gain` and the linear `cap` |
 | `src/fm24_config.py` | Load and validate `offsets.toml` and `config.json` |
 | `src/offsets.toml` | FM24 memory offsets |
 | `tests/` | Unit tests (no game process required) |

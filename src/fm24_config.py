@@ -29,7 +29,6 @@ class GrowthSettings:
     """Validated values from config.json."""
 
     monthly_gain: int
-    max_age: int
     cap: CapRule
 
 
@@ -98,10 +97,6 @@ def load_growth_settings(path: Path = SETTINGS_PATH) -> GrowthSettings:
     if not isinstance(gain, int) or isinstance(gain, bool) or gain <= 0:
         raise RuntimeError("config.json must contain a positive integer monthly_gain")
 
-    max_age = settings.get("max_age", 22)
-    if not isinstance(max_age, int) or isinstance(max_age, bool) or max_age < 0:
-        raise RuntimeError("config.json max_age must be a non-negative integer")
-
     raw_cap = settings.get("cap", {})
     if not isinstance(raw_cap, dict):
         raise RuntimeError("config.json cap must be an object")
@@ -126,4 +121,4 @@ def load_growth_settings(path: Path = SETTINGS_PATH) -> GrowthSettings:
     cap = CapRule(
         float(start_age), float(start_ratio), float(end_age), float(end_ratio)
     )
-    return GrowthSettings(gain, max_age, cap)
+    return GrowthSettings(gain, cap)

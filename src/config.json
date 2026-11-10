@@ -1,6 +1,5 @@
 {
   "monthly_gain": 2,
-  "max_age": 23,
   "cap": {
     "start_age": 18,
     "start_ratio": 0.7,

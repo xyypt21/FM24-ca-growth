@@ -81,6 +81,8 @@ def growth_target(ca: int, pa: int, age: float, settings: GrowthSettings) -> int
     """Return CA + monthly_gain when it stays within the age cap; else None."""
     if not (1 <= ca <= 200 and 1 <= pa <= 200) or ca > pa:
         return None
+    if age >= settings.cap.end_age:
+        return None
     cap = growth_cap(age, pa, settings.cap)
     new_ca = ca + settings.monthly_gain
     return new_ca if new_ca <= cap else None
@@ -94,8 +96,9 @@ def controlled_players(memory: Memory) -> list[Player]:
 def growth_plan(players: Iterable[Player], settings: GrowthSettings) -> list[Change]:
     """Return the planned CA changes, deduplicated by player record address.
 
-    Only players younger than ``settings.max_age`` are eligible. With max_age
-    22, a 21.9-year-old grows while a 22.0-year-old does not.
+    Players at or above ``cap.end_age`` do not grow. Below that, the cap is
+    linear: ``start_age`` uses ``start_ratio`` and the ratio rises towards
+    ``end_ratio``.
     """
     changes: list[Change] = []
     seen: set[int] = set()
@@ -106,7 +109,7 @@ def growth_plan(players: Iterable[Player], settings: GrowthSettings) -> list[Cha
         seen.add(address)
 
         age = player["age"]
-        if age is None or age >= settings.max_age:
+        if age is None:
             continue
 
         ca = player["ca"]

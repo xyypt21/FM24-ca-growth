@@ -26,9 +26,8 @@ from fm24_ca_growth import (  # noqa: E402
 from fm24_config import CapRule, GrowthSettings, load_growth_settings  # noqa: E402
 
 GAIN = 2
-MAX_AGE = 22
 CAP = CapRule(18, 0.7, 22, 0.9)
-SETTINGS = GrowthSettings(GAIN, MAX_AGE, CAP)
+SETTINGS = GrowthSettings(GAIN, CAP)
 
 BASE = 0x140000000
 CONTAINER = 0x20000000
@@ -125,7 +124,7 @@ def record(ca: int, pa: int, year: int = 2003, day_of_year: int = 200) -> bytes:
     """Build a minimal player record with a type tag, CA/PA, and birth date.
 
     Default birth date (2003-07-19) makes the player 21.x years old on
-    2025-04-01, which is at or below the default max_age of 22.
+    2025-04-01, which is below the default end_age of 22.
     """
     raw = bytearray(RECORD_READ)
     raw[0:4] = PLAYER_TAG.to_bytes(4, "little")
@@ -221,7 +220,6 @@ class SettingsTest(unittest.TestCase):
     def test_loads_growth_settings(self) -> None:
         data = {
             "monthly_gain": GAIN,
-            "max_age": MAX_AGE,
             "cap": {
                 "start_age": 18,
                 "start_ratio": 0.7,
@@ -235,7 +233,6 @@ class SettingsTest(unittest.TestCase):
             settings = load_growth_settings(path)
 
         self.assertEqual(settings.monthly_gain, GAIN)
-        self.assertEqual(settings.max_age, MAX_AGE)
         self.assertEqual(settings.cap, CAP)
 
 
@@ -255,7 +252,12 @@ class GrowthPlanTest(unittest.TestCase):
             [Change("Grows", 1, 100, 100 + GAIN, 150, 120, 20.0)],
         )
 
-    def test_skips_players_above_max_age(self) -> None:
+    def test_stops_at_end_age(self) -> None:
+        self.assertIsNone(growth_target(100, 150, 22.0, SETTINGS))
+        self.assertIsNone(growth_target(100, 150, 22.9, SETTINGS))
+        self.assertIsNone(growth_target(100, 150, 23.0, SETTINGS))
+
+    def test_skips_players_at_or_above_end_age(self) -> None:
         changes = growth_plan(
             [
                 player(1, 100, 150, "Age 21.9", 21.9),

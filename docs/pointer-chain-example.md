@@ -175,11 +175,11 @@ exe base 0x140000000
 The write is verified by reading CA back. Players whose `CA + monthly_gain`
 (from `src/config.json`) would exceed the age cap are skipped, and CA is never
 clamped. Preview and settlement lines show the player's age, PA, and cap. The
-cap is linear: below `start_age` it is `PA × start_ratio`, above `end_age` it is
-`PA × end_ratio`, and in between it interpolates linearly, rounded to the
-nearest integer. With `cap` `(18, 0.7) -> (22, 0.9)`, age 18 gives 0.7, age 20
-gives 0.8, and age 22 gives 0.9. Age is strict: with `max_age` 22,
-21.9-year-olds grow and 22.0-year-olds are skipped.
+cap is linear: at or below `start_age` it is `PA × start_ratio`; between
+`start_age` and `end_age` it interpolates towards `PA × end_ratio`; at or above
+`end_age` there is no growth. Ratios are rounded to the nearest integer. With
+`cap` `(18, 0.7) -> (22, 0.9)`, age 18 gives 0.7, age 20 gives 0.8, and just
+below 22 gives 0.9.
 
 Save reload detection
 
