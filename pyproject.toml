@@ -14,8 +14,3 @@ dependencies = [
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-# Long human-readable messages are fine; wrapping them is not worth the churn.
-ignore = ["E501"]
-
-[tool.ruff.lint.isort]
-known-first-party = ["fm24_config", "fm24_memory", "manager_uid"]
