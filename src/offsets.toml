@@ -72,7 +72,10 @@ record_read = 0x3D8
 
 
 # Record magic -> person sub-object offset. The 4-byte tag at the start of a
-# player record selects the layout. Records with any other tag are not players
+# player record selects the layout. It is a type tag, not a pointer.
+#   0x45A4E958 -> normal player record, person at +0x278
+#   0x45C7E798 -> player who is also staff, person at +0x368
+# Records with any other tag (for example 0x45C7D028) are not player records
 # (or are unreadable) and are skipped.
 [player.layouts]
 "0x45A4E958" = 0x278

@@ -143,4 +143,14 @@ exe base 0x140000000
 A record whose magic is not in `[player.layouts]` is not a player record and is
 skipped. The short name is preferred when present; this player has none, so the
 name comes from first name + last name.
+
+The record magic is the 4-byte type tag at the start of the record. It is not a
+pointer and not part of the person data; it selects the record layout:
+
+| Magic | Meaning | Person offset |
+|---|---|---|
+| `0x45A4E958` | Normal player | `+0x278` |
+| `0x45C7E798` | Player who is also staff | `+0x368` |
+
+Any other tag (for example `0x45C7D028`) is not a player record and is skipped.
 ```
