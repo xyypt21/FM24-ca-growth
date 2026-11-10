@@ -180,7 +180,13 @@ class PlayerReadTest(unittest.TestCase):
         self.assertEqual(len(players), 1)
         self.assertEqual(
             players[0],
-            {"name": "(unknown)", "ca": 136, "pa": 150, "age": 24.0},
+            {
+                "address": PLAYER,
+                "name": "(unknown)",
+                "ca": 136,
+                "pa": 150,
+                "age": 24.0,
+            },
         )
 
     def test_prefers_short_name(self) -> None:

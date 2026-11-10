@@ -153,4 +153,24 @@ pointer and not part of the person data; it selects the record layout:
 | `0x45C7E798` | Player who is also staff | `+0x368` |
 
 Any other tag (for example `0x45C7D028`) is not a player record and is skipped.
+
+## fm24_ca_growth.py
+
+Uses the player records from `fm24_players.py` and writes CA once per in-game
+month:
+
+```text
+0x1038E63A8
+  + ca 0x200
+  = 0x1038E65A8
+        read u16     -> 136                current CA
+        write u16    -> 138                new CA (only when <= PA)
+
+exe base 0x140000000
+  + game_date.rva 0x631D5BC
+  = 0x14631D5BC
+        read u32     -> 0x07E9005B         in-game date; a new month triggers growth
 ```
+
+The write is verified by reading CA back. Players whose `CA + 2` would exceed PA
+are skipped, and CA is never clamped to PA.

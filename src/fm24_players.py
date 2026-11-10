@@ -150,6 +150,7 @@ def players_in_team(
 
         players.append(
             {
+                "address": address,
                 "name": read_name(memory, person) or "(unknown)",
                 "ca": read_u16(record, player_cfg["ca"]),
                 "pa": read_u16(record, player_cfg["pa"]),

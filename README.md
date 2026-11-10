@@ -1,7 +1,8 @@
 # FM24 CA Growth Final
 
-FM24 memory tooling. Currently reads the human manager UID and the UIDs of every
-team they control, including reserves, youth teams, and linked B teams.
+FM24 memory tooling. Reads the human manager UID, the UIDs of every controlled
+team, and each team's players (name, CA, PA, age), and can add CA growth every
+in-game month.
 
 ## Requirements
 
@@ -86,6 +87,33 @@ layout this is, and therefore where the person sub-object starts:
 Any other tag is not a player record (for example `0x45C7D028` appears in the
 roster without a person/name) and is skipped.
 
+## Grow CA every in-game month
+
+Preview the plan without writing anything:
+
+```powershell
+python src/fm24_ca_growth.py --preview
+```
+
+Run the watcher:
+
+```powershell
+python src/fm24_ca_growth.py
+```
+
+On every new in-game month it adds `MONTHLY_GAIN` (currently **2**) CA to every
+unique player in every controlled team. Rules:
+
+- CA never grows above PA; players already at their potential are skipped.
+- Invalid CA/PA values (outside `1..200`, or CA above PA) are skipped.
+- Rosters, CA, PA, and record addresses are re-read on every settlement.
+- Starting on the 1st settles immediately. If a holiday skips the 1st, the first
+  new month seen afterwards is paid once.
+- Stop with Ctrl+C.
+
+This command **writes to game memory**, unlike the reader commands. Run it at
+the same privilege level as the game.
+
 ## Pointer chain
 
 ```text
@@ -109,6 +137,8 @@ exe + manager.container_rva   -> manager container
       person + short_name / first_name / last_name -> name string
       person + birth_doy / birth_year -> birth date
       exe + game_date.rva     -> in-game date for age
+
+      record + ca             -> write u16 current ability (monthly growth)
 ```
 
 All offsets live in `src/offsets.toml`. Update only that file when the game
@@ -124,7 +154,8 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_manager.py` | Manager lookup, manager UID chain, and command-line entry point |
 | `src/fm24_team.py` | All controlled team UIDs and command-line entry point |
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
-| `src/fm24_memory.py` | Process access, low-level reads, and pointer vectors |
+| `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
+| `src/fm24_memory.py` | Process access, low-level reads/writes, and pointer vectors |
 | `src/fm24_config.py` | Load and validate `offsets.toml` |
 | `src/offsets.toml` | FM24 memory offsets |
 | `tests/` | Unit tests (no game process required) |

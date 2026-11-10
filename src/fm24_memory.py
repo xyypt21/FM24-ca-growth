@@ -1,7 +1,8 @@
-"""Read-only access to FM24 process memory.
+"""Read and write FM24 process memory.
 
-This module only opens the process and reads bytes, pointers, and u32 values.
-Manager and team pointer chains live in their own modules.
+This module only opens the process and reads or writes bytes, pointers, and
+small integers. Manager, team, and player pointer chains live in their own
+modules.
 
 Usage:
 
@@ -84,6 +85,15 @@ class Memory:
         """Read one 2-byte unsigned integer (x64 little-endian)."""
         raw = self.read_bytes(address, 2)
         return int.from_bytes(raw, "little") if raw else None
+
+    def write_u16(self, address: int, value: int) -> bool:
+        """Write one 2-byte unsigned integer and verify it; return success."""
+        raw = value.to_bytes(2, "little")
+        try:
+            self.process.write_bytes(address, raw, len(raw))
+        except (pymem.exception.MemoryWriteError, pymem.exception.ProcessError):
+            return False
+        return self.read_u16(address) == value
 
     def read_ptr_vector(self, address: int, label: str) -> list[int]:
         """Read a begin/end pointer vector; return [] when it does not exist."""
