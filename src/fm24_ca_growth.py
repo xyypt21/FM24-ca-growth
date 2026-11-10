@@ -6,10 +6,9 @@ CA never grows above PA, so players already at their potential are skipped.
 
 This script watches the in-game date; it does not use the system clock. It
 re-reads the rosters on every settlement, so CA, PA, age, and record addresses
-are always current. It detects save reloads by watching the in-game date move
-backward; all memory addresses change on reload, but every settlement re-reads
-the rosters so no address is cached. Growth only happens when the month
-actually changes; starting on the 1st does not trigger an immediate settlement.
+are always current. It detects save reloads by watching the club address, which
+changes when the game loads a save. Growth only happens when the month actually
+changes; starting on the 1st does not trigger an immediate settlement.
 
 Usage:
 
@@ -31,6 +30,7 @@ from dataclasses import dataclass
 from fm24_config import Config, load_config, load_settings
 from fm24_memory import Memory
 from fm24_players import game_date, team_players
+from fm24_team import user_club
 
 # How often the in-game date is checked.
 POLL_SECONDS = 2.0
@@ -167,15 +167,16 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
     Growth only happens when the in-game month actually changes. Starting on
     the 1st does not trigger an immediate settlement.
 
-    Save reload detection: when the game reloads a save, all memory addresses
-    change and the in-game date can move backward. Settle_month re-reads every
-    roster address on each call, so no address is cached. A backward date
-    resets the state to the current month without settling.
+    Save reload detection: reloading a save changes every address in memory,
+    including the club. The watcher compares the club address on each loop
+    iteration. When it changes, the state resets to the current month without
+    settling. Every settlement re-reads all rosters, so no address is cached.
     """
     today = game_date(memory)
     if today is None:
         raise RuntimeError("Cannot read the in-game date")
 
+    last_club = user_club(memory)
     last_month = month_key(today)
     print(f"Game date {today}; waiting for the next month.")
 
@@ -185,12 +186,24 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
         if now is None:
             continue
 
+        try:
+            current_club = user_club(memory)
+        except RuntimeError:
+            # The save is still loading; try again on the next poll.
+            continue
+
+        if current_club != last_club:
+            print(
+                f"Save reloaded at {now}; club address changed "
+                f"0x{last_club:X} -> 0x{current_club:X}. "
+                f"Resetting state; waiting for next month."
+            )
+            last_club = current_club
+            last_month = month_key(now)
+            continue
+
         key = month_key(now)
         if key == last_month:
-            continue
-        if key < last_month:
-            print(f"Save reloaded at {now}; date moved back, resetting state.")
-            last_month = key
             continue
 
         try:

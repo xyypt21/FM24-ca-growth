@@ -178,7 +178,8 @@ PA. Players older than `max_age` (default 22) are also skipped.
 
 Save reload detection
 
-When the game reloads a save, all memory addresses change and the in-game date
-can move backward. The watcher detects the backward date and resets the state to
-the current month without settling. Every settlement re-reads all roster, team,
-and player addresses, so no address is cached across reloads.
+When the game reloads a save, all memory addresses change, including the club
+address. The watcher compares the club address on each loop iteration. When it
+changes, the state resets to the current month without settling. Every
+settlement re-reads all roster, team, and player addresses, so no address is
+cached across reloads.
