@@ -126,6 +126,22 @@ addresses, so no address is cached across reloads.
 This command **writes to game memory**, unlike the reader commands. Run it at
 the same privilege level as the game.
 
+## GUI
+
+The same watcher with buttons and a log window:
+
+```powershell
+python src/fm24_ca_growth_gui.py
+```
+
+- **Start** runs the watcher in a background thread.
+- **Stop** stops it without closing the window.
+- **Preview next settlement** reads the roster and prints the plan; it writes
+  nothing.
+- The settings panel shows `monthly_gain`, `max_age`, and the linear `cap` from
+  `config.json`. The GUI never edits `config.json`.
+- Startup and save reload still print the automatic preview into the log.
+
 ## Pointer chain
 
 ```text
@@ -167,6 +183,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_team.py` | All controlled team UIDs and command-line entry point |
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
+| `src/fm24_ca_growth_gui.py` | Tkinter GUI for the CA growth watcher |
 | `src/fm24_memory.py` | Process access, low-level reads/writes, and pointer vectors |
 | `src/config.json` | Growth settings: `monthly_gain`, `max_age`, and the linear `cap` |
 | `src/fm24_config.py` | Load and validate `offsets.toml` and `config.json` |

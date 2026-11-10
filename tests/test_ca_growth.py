@@ -7,6 +7,7 @@ import io
 import json
 import sys
 import tempfile
+import threading
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -21,6 +22,7 @@ from fm24_ca_growth import (  # noqa: E402
     month_key,
     settle_month,
     show_plan,
+    watch,
 )
 from fm24_config import CapRule, GrowthSettings, load_growth_settings  # noqa: E402
 
@@ -335,6 +337,20 @@ class SettleMonthTest(unittest.TestCase):
         memory = memory_with_players([(TEAM, [])])
         with self.assertRaisesRegex(RuntimeError, "No players"):
             settle_month(memory, SETTINGS)
+
+
+class WatchTest(unittest.TestCase):
+    def test_stops_when_the_event_is_set(self) -> None:
+        memory = memory_with_players([(TEAM, [PLAYER])])
+        memory.blobs[PLAYER] = record(100, 150)
+        stop_event = threading.Event()
+        stop_event.set()
+        messages: list[str] = []
+
+        result = watch(memory, SETTINGS, log=messages.append, stop_event=stop_event)
+
+        self.assertEqual(result, 0)
+        self.assertIn("Stopped.", messages)
 
 
 if __name__ == "__main__":

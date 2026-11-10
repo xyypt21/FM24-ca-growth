@@ -22,8 +22,9 @@ unlike the reader commands. Run it at the same privilege level as the game.
 from __future__ import annotations
 
 import datetime
+import threading
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from fm24_config import (
@@ -41,6 +42,7 @@ from fm24_team import user_club
 POLL_SECONDS = 2.0
 
 Player = dict[str, object]
+Log = Callable[[str], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,7 +135,9 @@ def growth_plan(players: Iterable[Player], settings: GrowthSettings) -> list[Cha
     return changes
 
 
-def settle_month(memory: Memory, settings: GrowthSettings) -> list[Change]:
+def settle_month(
+    memory: Memory, settings: GrowthSettings, log: Log = print
+) -> list[Change]:
     """Write the planned CA changes and return the ones that were verified."""
     players = controlled_players(memory)
     if not players:
@@ -143,13 +147,18 @@ def settle_month(memory: Memory, settings: GrowthSettings) -> list[Change]:
     written: list[Change] = []
     for change in growth_plan(players, settings):
         if not memory.write_u16(change.address + ca_off, change.new_ca):
-            print(f"Write failed: {change.name} (0x{change.address:X})")
+            log(f"Write failed: {change.name} (0x{change.address:X})")
             continue
         written.append(change)
     return written
 
 
-def show_plan(memory: Memory, today: datetime.date, settings: GrowthSettings) -> bool:
+def show_plan(
+    memory: Memory,
+    today: datetime.date,
+    settings: GrowthSettings,
+    log: Log = print,
+) -> bool:
     """Read the roster, print the next settlement plan, and write nothing.
 
     Changes are sorted by age, youngest first. Returns False when players
@@ -158,28 +167,41 @@ def show_plan(memory: Memory, today: datetime.date, settings: GrowthSettings) ->
     try:
         players = controlled_players(memory)
     except RuntimeError as error:
-        print(f"Cannot read players for preview ({error}).")
+        log(f"Cannot read players for preview ({error}).")
         return False
     if not players:
-        print("No players readable for preview.")
+        log("No players readable for preview.")
         return False
 
     changes = growth_plan(players, settings)
-    print(f"Planned CA changes for {today} (+{settings.monthly_gain} CA):")
+    log(f"Planned CA changes for {today} (+{settings.monthly_gain} CA):")
     ordered = sorted(
         changes, key=lambda change: (change.age is None, change.age or 0.0)
     )
     for change in ordered:
         age = "-" if change.age is None else f"{change.age:.1f}"
-        print(
+        log(
             f"  {change.name:<26} age {age:>4}  CA {change.ca:>3} -> "
             f"{change.new_ca:>3}  PA {change.pa:>3}  cap {change.cap:>3}"
         )
-    print(f"  {len(changes)} players.")
+    log(f"  {len(changes)} players.")
     return True
 
 
-def watch(memory: Memory, settings: GrowthSettings) -> int:
+def _wait(stop_event: threading.Event | None) -> bool:
+    """Sleep for one poll interval; return True when a stop was requested."""
+    if stop_event is None:
+        time.sleep(POLL_SECONDS)
+        return False
+    return stop_event.wait(POLL_SECONDS)
+
+
+def watch(
+    memory: Memory,
+    settings: GrowthSettings,
+    log: Log = print,
+    stop_event: threading.Event | None = None,
+) -> int:
     """Settle once per new in-game month until interrupted.
 
     Growth only happens when the in-game month actually changes. Starting on
@@ -197,11 +219,13 @@ def watch(memory: Memory, settings: GrowthSettings) -> int:
 
     last_club = user_club(memory)
     last_month = month_key(today)
-    print(f"Game date {today}; waiting for the next month.")
-    show_plan(memory, today, settings)
+    log(f"Game date {today}; waiting for the next month.")
+    show_plan(memory, today, settings, log)
 
     while True:
-        time.sleep(POLL_SECONDS)
+        if _wait(stop_event):
+            log("Stopped.")
+            return 0
         now = game_date(memory)
         if now is None:
             continue
@@ -213,14 +237,14 @@ def watch(memory: Memory, settings: GrowthSettings) -> int:
             continue
 
         if current_club != last_club:
-            print(
+            log(
                 f"Save reloaded at {now}; club address changed "
                 f"0x{last_club:X} -> 0x{current_club:X}. "
                 f"Resetting state; waiting for next month."
             )
             last_club = current_club
             last_month = month_key(now)
-            show_plan(memory, now, settings)
+            show_plan(memory, now, settings, log)
             continue
 
         key = month_key(now)
@@ -228,18 +252,18 @@ def watch(memory: Memory, settings: GrowthSettings) -> int:
             continue
 
         try:
-            written = settle_month(memory, settings)
+            written = settle_month(memory, settings, log)
         except RuntimeError as error:
-            print(f"Cannot read players ({error}); retrying.")
+            log(f"Cannot read players ({error}); retrying.")
             continue
 
         last_month = key
         for change in written:
-            print(
+            log(
                 f"{now}  {change.name:<26} CA {change.ca:>3} -> "
                 f"{change.new_ca:>3}  PA {change.pa:>3}  cap {change.cap:>3}"
             )
-        print(f"{now}: wrote {len(written)} players.")
+        log(f"{now}: wrote {len(written)} players.")
 
 
 def main() -> int:
