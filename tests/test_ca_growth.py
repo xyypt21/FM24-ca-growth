@@ -13,18 +13,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fm24_ca_growth import (  # noqa: E402
     Change,
+    growth_cap,
     growth_plan,
     growth_target,
-    max_age,
     month_key,
-    monthly_gain,
     print_plan,
     settle_month,
     show_plan,
 )
+from fm24_config import CapRule, GrowthSettings, load_growth_settings  # noqa: E402
 
 GAIN = 2
 MAX_AGE = 22
+CAPS = (CapRule(18, 0.7), CapRule(20, 0.8), CapRule(22, 0.9))
+SETTINGS = GrowthSettings(GAIN, MAX_AGE, CAPS)
 
 BASE = 0x140000000
 CONTAINER = 0x20000000
@@ -175,17 +177,18 @@ def player(
 
 class GrowthTargetTest(unittest.TestCase):
     def test_adds_monthly_gain(self) -> None:
-        self.assertEqual(growth_target(100, 150, GAIN), 100 + GAIN)
+        self.assertEqual(growth_target(100, 150, 21.9, SETTINGS), 100 + GAIN)
 
-    def test_stops_at_pa(self) -> None:
-        self.assertIsNone(growth_target(100, 101, GAIN))
-        self.assertIsNone(growth_target(100, 100, GAIN))
+    def test_stops_at_age_cap(self) -> None:
+        self.assertEqual(growth_target(133, 150, 21.9, SETTINGS), 135)
+        self.assertIsNone(growth_target(134, 150, 21.9, SETTINGS))
+        self.assertIsNone(growth_target(100, 100, 20.0, SETTINGS))
 
     def test_invalid_values_are_skipped(self) -> None:
-        self.assertIsNone(growth_target(0, 150, GAIN))
-        self.assertIsNone(growth_target(150, 0, GAIN))
-        self.assertIsNone(growth_target(150, 100, GAIN))
-        self.assertIsNone(growth_target(201, 210, GAIN))
+        self.assertIsNone(growth_target(0, 150, 20.0, SETTINGS))
+        self.assertIsNone(growth_target(150, 0, 20.0, SETTINGS))
+        self.assertIsNone(growth_target(150, 100, 20.0, SETTINGS))
+        self.assertIsNone(growth_target(201, 210, 20.0, SETTINGS))
 
     def test_month_key_orders_months(self) -> None:
         self.assertLess(
@@ -193,19 +196,26 @@ class GrowthTargetTest(unittest.TestCase):
             month_key(datetime.date(2025, 1, 1)),
         )
 
-    def test_monthly_gain_comes_from_settings(self) -> None:
-        self.assertEqual(monthly_gain({"monthly_gain": 2}), 2)
 
-    def test_max_age_comes_from_settings(self) -> None:
-        self.assertEqual(max_age({"max_age": 22}), 22)
+class GrowthCapTest(unittest.TestCase):
+    def test_age_band_caps(self) -> None:
+        self.assertEqual(growth_cap(17.9, 200, CAPS), 140)
+        self.assertEqual(growth_cap(18.0, 200, CAPS), 160)
+        self.assertEqual(growth_cap(19.9, 200, CAPS), 160)
+        self.assertEqual(growth_cap(20.0, 200, CAPS), 180)
+        self.assertEqual(growth_cap(21.9, 200, CAPS), 180)
+        self.assertEqual(growth_cap(22.0, 200, CAPS), 200)
 
-    def test_max_age_defaults_to_22(self) -> None:
-        self.assertEqual(max_age({}), 22)
+    def test_cap_is_limited_by_pa(self) -> None:
+        self.assertEqual(growth_cap(17.0, 100, CAPS), 70)
 
-    def test_invalid_max_age_raises(self) -> None:
-        for settings in ({"max_age": -1}, {"max_age": True}, {"max_age": "22"}):
-            with self.assertRaisesRegex(RuntimeError, "max_age"):
-                max_age(settings)
+
+class SettingsTest(unittest.TestCase):
+    def test_loads_growth_settings(self) -> None:
+        settings = load_growth_settings()
+        self.assertEqual(settings.monthly_gain, GAIN)
+        self.assertEqual(settings.max_age, MAX_AGE)
+        self.assertEqual(settings.caps, CAPS)
 
 
 class GrowthPlanTest(unittest.TestCase):
@@ -217,8 +227,7 @@ class GrowthPlanTest(unittest.TestCase):
                 player(3, 100, 101, "Would exceed", 20.0),
                 player(4, 0, 150, "Invalid", 20.0),
             ],
-            GAIN,
-            MAX_AGE,
+            SETTINGS,
         )
         self.assertEqual(
             changes,
@@ -233,8 +242,7 @@ class GrowthPlanTest(unittest.TestCase):
                 player(3, 100, 150, "Age 22.9", 22.9),
                 player(4, 100, 150, "Unknown", None),
             ],
-            GAIN,
-            MAX_AGE,
+            SETTINGS,
         )
         self.assertEqual(
             changes,
@@ -247,8 +255,7 @@ class GrowthPlanTest(unittest.TestCase):
                 player(1, 100, 150, "Same", 20.0),
                 player(1, 100, 150, "Same", 20.0),
             ],
-            GAIN,
-            MAX_AGE,
+            SETTINGS,
         )
         self.assertEqual(len(changes), 1)
 
@@ -261,7 +268,7 @@ class PrintPlanTest(unittest.TestCase):
         ]
         output = io.StringIO()
         with redirect_stdout(output):
-            print_plan(datetime.date(2025, 4, 1), changes, GAIN)
+            print_plan(datetime.date(2025, 4, 1), changes, SETTINGS)
 
         lines = output.getvalue().splitlines()
         self.assertIn("Younger", lines[1])
@@ -275,7 +282,7 @@ class ShowPlanTest(unittest.TestCase):
 
         output = io.StringIO()
         with redirect_stdout(output):
-            ok = show_plan(memory, datetime.date(2025, 4, 1), GAIN, MAX_AGE)
+            ok = show_plan(memory, datetime.date(2025, 4, 1), SETTINGS)
 
         self.assertTrue(ok)
         self.assertEqual(memory.written, {})
@@ -294,7 +301,7 @@ class SettleMonthTest(unittest.TestCase):
         memory.blobs[PLAYER] = record(100, 150)
         memory.blobs[PLAYER_AT_PA] = record(150, 150)
 
-        written = settle_month(memory, GAIN, MAX_AGE)
+        written = settle_month(memory, SETTINGS)
 
         self.assertEqual(len(written), 1)
         self.assertEqual(
@@ -305,7 +312,7 @@ class SettleMonthTest(unittest.TestCase):
     def test_no_players_raises(self) -> None:
         memory = memory_with_players([(TEAM, [])])
         with self.assertRaisesRegex(RuntimeError, "No players"):
-            settle_month(memory, GAIN, MAX_AGE)
+            settle_month(memory, SETTINGS)
 
 
 if __name__ == "__main__":

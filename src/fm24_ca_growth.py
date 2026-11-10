@@ -15,6 +15,7 @@ Usage:
     python src/fm24_ca_growth.py            # run until Ctrl+C
     python src/fm24_ca_growth.py --preview  # show the plan; write nothing
 
+Settings live in ``config.json``: monthly gain, max age, and age-based PA caps.
 The game must be running with a save loaded. This script WRITES to game memory,
 unlike the reader commands. Run it at the same privilege level as the game.
 """
@@ -27,7 +28,13 @@ import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from fm24_config import Config, load_config, load_settings
+from fm24_config import (
+    CapRule,
+    Config,
+    GrowthSettings,
+    load_config,
+    load_growth_settings,
+)
 from fm24_memory import Memory
 from fm24_players import game_date, team_players
 from fm24_team import user_club
@@ -55,31 +62,25 @@ def month_key(date: datetime.date) -> int:
     return date.year * 12 + date.month
 
 
-def monthly_gain(settings: dict[str, object]) -> int:
-    """Return the configured positive monthly CA gain."""
-    gain = settings.get("monthly_gain")
-    if not isinstance(gain, int) or isinstance(gain, bool) or gain <= 0:
-        raise RuntimeError("config.json must contain a positive integer monthly_gain")
-    return gain
+def growth_cap(age: float, pa: int, caps: tuple[CapRule, ...]) -> int:
+    """Return the CA ceiling for this age, capped by PA.
 
-
-def max_age(settings: dict[str, object]) -> int:
-    """Return the maximum age (inclusive) eligible for CA growth.
-
-    Players older than this are skipped. Defaults to 22 when missing.
+    The first rule whose below_age is greater than age wins; with no matching
+    rule the ceiling is PA itself.
     """
-    age = settings.get("max_age", 22)
-    if not isinstance(age, int) or isinstance(age, bool) or age < 0:
-        raise RuntimeError("config.json max_age must be a non-negative integer")
-    return age
+    for rule in caps:
+        if age < rule.below_age:
+            return min(pa, int(pa * rule.pa_ratio))
+    return pa
 
 
-def growth_target(ca: int, pa: int, gain: int) -> int | None:
-    """Return CA + gain when it stays within PA; otherwise None."""
+def growth_target(ca: int, pa: int, age: float, settings: GrowthSettings) -> int | None:
+    """Return CA + monthly_gain when it stays within the age cap; else None."""
     if not (1 <= ca <= 200 and 1 <= pa <= 200) or ca > pa:
         return None
-    new_ca = ca + gain
-    return new_ca if new_ca <= pa else None
+    cap = growth_cap(age, pa, settings.caps)
+    new_ca = ca + settings.monthly_gain
+    return new_ca if new_ca <= cap else None
 
 
 def controlled_players(memory: Memory) -> list[Player]:
@@ -87,13 +88,11 @@ def controlled_players(memory: Memory) -> list[Player]:
     return [player for _, players in team_players(memory) for player in players]
 
 
-def growth_plan(
-    players: Iterable[Player], gain: int, max_age_value: int
-) -> list[Change]:
+def growth_plan(players: Iterable[Player], settings: GrowthSettings) -> list[Change]:
     """Return the planned CA changes, deduplicated by player record address.
 
-    Only players younger than ``max_age_value`` are eligible. With max_age 22,
-    a 21.9-year-old grows while a 22.0-year-old does not.
+    Only players younger than ``settings.max_age`` are eligible. With max_age
+    22, a 21.9-year-old grows while a 22.0-year-old does not.
     """
     changes: list[Change] = []
     seen: set[int] = set()
@@ -104,12 +103,12 @@ def growth_plan(
         seen.add(address)
 
         age = player["age"]
-        if age is None or age >= max_age_value:
+        if age is None or age >= settings.max_age:
             continue
 
         ca = player["ca"]
         pa = player["pa"]
-        new_ca = growth_target(ca, pa, gain)
+        new_ca = growth_target(ca, pa, age, settings)
         if new_ca is None:
             continue
         changes.append(
@@ -125,7 +124,7 @@ def growth_plan(
     return changes
 
 
-def settle_month(memory: Memory, gain: int, max_age_value: int) -> list[Change]:
+def settle_month(memory: Memory, settings: GrowthSettings) -> list[Change]:
     """Write the planned CA changes and return the ones that were verified."""
     players = controlled_players(memory)
     if not players:
@@ -133,7 +132,7 @@ def settle_month(memory: Memory, gain: int, max_age_value: int) -> list[Change]:
 
     ca_off = memory.config["player"]["ca"]
     written: list[Change] = []
-    for change in growth_plan(players, gain, max_age_value):
+    for change in growth_plan(players, settings):
         if not memory.write_u16(change.address + ca_off, change.new_ca):
             print(f"Write failed: {change.name} (0x{change.address:X})")
             continue
@@ -141,9 +140,11 @@ def settle_month(memory: Memory, gain: int, max_age_value: int) -> list[Change]:
     return written
 
 
-def print_plan(today: datetime.date, changes: list[Change], gain: int) -> None:
+def print_plan(
+    today: datetime.date, changes: list[Change], settings: GrowthSettings
+) -> None:
     """Print the planned changes sorted by age, youngest first."""
-    print(f"Planned CA changes for {today} (+{gain} CA):")
+    print(f"Planned CA changes for {today} (+{settings.monthly_gain} CA):")
     ordered = sorted(
         changes, key=lambda change: (change.age is None, change.age or 0.0)
     )
@@ -156,9 +157,7 @@ def print_plan(today: datetime.date, changes: list[Change], gain: int) -> None:
     print(f"  {len(changes)} players.")
 
 
-def show_plan(
-    memory: Memory, today: datetime.date, gain: int, max_age_value: int
-) -> bool:
+def show_plan(memory: Memory, today: datetime.date, settings: GrowthSettings) -> bool:
     """Print the next settlement plan without writing; return False if unreadable."""
     try:
         players = controlled_players(memory)
@@ -168,21 +167,21 @@ def show_plan(
     if not players:
         print("No players readable for preview.")
         return False
-    print_plan(today, growth_plan(players, gain, max_age_value), gain)
+    print_plan(today, growth_plan(players, settings), settings)
     return True
 
 
-def preview(memory: Memory, gain: int, max_age_value: int) -> int:
+def preview(memory: Memory, settings: GrowthSettings) -> int:
     """Show the current plan without writing to game memory."""
     today = game_date(memory)
     if today is None:
         raise RuntimeError("Cannot read the in-game date")
-    if not show_plan(memory, today, gain, max_age_value):
+    if not show_plan(memory, today, settings):
         raise RuntimeError("No players found: save not loaded or wrong offsets")
     return 0
 
 
-def watch(memory: Memory, gain: int, max_age_value: int) -> int:
+def watch(memory: Memory, settings: GrowthSettings) -> int:
     """Settle once per new in-game month until interrupted.
 
     Growth only happens when the in-game month actually changes. Starting on
@@ -201,7 +200,7 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
     last_club = user_club(memory)
     last_month = month_key(today)
     print(f"Game date {today}; waiting for the next month.")
-    show_plan(memory, today, gain, max_age_value)
+    show_plan(memory, today, settings)
 
     while True:
         time.sleep(POLL_SECONDS)
@@ -223,7 +222,7 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
             )
             last_club = current_club
             last_month = month_key(now)
-            show_plan(memory, now, gain, max_age_value)
+            show_plan(memory, now, settings)
             continue
 
         key = month_key(now)
@@ -231,7 +230,7 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
             continue
 
         try:
-            written = settle_month(memory, gain, max_age_value)
+            written = settle_month(memory, settings)
         except RuntimeError as error:
             print(f"Cannot read players ({error}); retrying.")
             continue
@@ -259,13 +258,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         config: Config = load_config()
-        settings = load_settings()
-        gain = monthly_gain(settings)
-        max_age_value = max_age(settings)
+        settings = load_growth_settings()
         with Memory.open(config) as memory:
             if args.preview:
-                return preview(memory, gain, max_age_value)
-            return watch(memory, gain, max_age_value)
+                return preview(memory, settings)
+            return watch(memory, settings)
     except KeyboardInterrupt:
         print("Stopped.")
         return 0
