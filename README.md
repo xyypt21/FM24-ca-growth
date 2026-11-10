@@ -112,6 +112,14 @@ team. Rules:
   new month seen afterwards is paid once.
 - Stop with Ctrl+C.
 
+Save reload detection
+
+The human manager object address changes every time the game (re)loads a save.
+The watcher compares the manager address on each loop iteration. When it
+changes, all previously read addresses are considered stale and the month cursor
+resets to force a fresh settlement for the current month on the next iteration.
+No roster, team, or player address is cached across reloads.
+
 This command **writes to game memory**, unlike the reader commands. Run it at
 the same privilege level as the game.
 

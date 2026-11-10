@@ -1,12 +1,13 @@
 """Monthly CA growth for every player in the controlled teams.
 
-Each in-game month change adds ``MONTHLY_GAIN`` CA to every unique player in
+Each in-game month change adds ``monthly_gain`` CA to every unique player in
 every team controlled by the human manager. CA never grows above PA, so players
 already at their potential are skipped.
 
 This script watches the in-game date; it does not use the system clock. It
 re-reads the rosters on every settlement, so CA, PA, and record addresses are
-always current.
+always current. It also detects save reloads: when the human manager address
+changes, all previously read addresses are stale and the month cursor resets.
 
 Usage:
 
@@ -26,6 +27,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from fm24_config import Config, load_config, load_settings
+from fm24_manager import manager_address
 from fm24_memory import Memory
 from fm24_players import game_date, team_players
 
@@ -139,11 +141,18 @@ def preview(memory: Memory, gain: int) -> int:
 
 
 def watch(memory: Memory, gain: int) -> int:
-    """Settle once per new in-game month until interrupted."""
+    """Settle once per new in-game month until interrupted.
+
+    Save reload detection: the human manager object address changes every time
+    the game (re)loads a save. When it changes, all previously read roster,
+    team, and player addresses are stale, so the month cursor is reset to force
+    a fresh settlement on the next loop iteration.
+    """
     today = game_date(memory)
     if today is None:
         raise RuntimeError("Cannot read the in-game date")
 
+    last_manager = manager_address(memory)
     last_month = month_key(today)
     if today.day == 1:
         # Started on the 1st: this month has not been paid by this run.
@@ -156,6 +165,19 @@ def watch(memory: Memory, gain: int) -> int:
         time.sleep(POLL_SECONDS)
         now = game_date(memory)
         if now is None:
+            continue
+
+        # Save reload: the manager address changes when a save is (re)loaded.
+        current_manager = manager_address(memory)
+        if current_manager != last_manager:
+            print(
+                f"Save reloaded at {now}; manager address changed "
+                f"0x{last_manager:X} -> 0x{current_manager:X}. "
+                f"Addresses are stale; resetting."
+            )
+            last_manager = current_manager
+            # Force a settlement for the current month on the next iteration.
+            last_month = month_key(now) - 1
             continue
 
         key = month_key(now)

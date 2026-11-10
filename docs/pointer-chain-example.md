@@ -175,3 +175,9 @@ exe base 0x140000000
 The write is verified by reading CA back. Players whose `CA + monthly_gain`
 (from `src/config.json`) would exceed PA are skipped, and CA is never clamped to
 PA.
+
+Save reload detection
+
+The human manager address changes when the game (re)loads a save. The watcher
+detects this change and resets the month cursor so the current month is settled
+on the next iteration. All addresses are re-read on every settlement.
