@@ -80,6 +80,11 @@ class Memory:
         raw = self.read_bytes(address, 4)
         return int.from_bytes(raw, "little") if raw else None
 
+    def read_u16(self, address: int) -> int | None:
+        """Read one 2-byte unsigned integer (x64 little-endian)."""
+        raw = self.read_bytes(address, 2)
+        return int.from_bytes(raw, "little") if raw else None
+
     def read_ptr_vector(self, address: int, label: str) -> list[int]:
         """Read a begin/end pointer vector; return [] when it does not exist."""
         begin = self.read_ptr(address)

@@ -48,6 +48,27 @@ Example output, one UID per line:
 The first team can share the club UID; youth teams have their own UID. Linked
 B teams are included as well.
 
+## Read a team's players
+
+Pass one of the team UIDs printed above:
+
+```powershell
+python src/fm24_players.py 920
+```
+
+Example output (tab-separated):
+
+```text
+Name	CA	PA	Age
+Leo Greiml	136	136	23.7
+Assan Ouédraogo	158	180	18.8
+Keke Topp	136	150	21.0
+```
+
+Names prefer the short name and fall back to first name + last name. Age is
+calculated from the in-game date, not from the system clock. Roster records that
+are not player records are skipped.
+
 ## Pointer chain
 
 ```text
@@ -63,6 +84,14 @@ exe + manager.container_rva   -> manager container
       club + teams_begin      -> owned teams (first team, reserves, youth)
       club + linked_teams_begin -> linked teams (B team)
       each team + uid_off     -> team UID (u32)
+
+      team + roster_begin     -> player record pointers
+      record + 0              -> record magic (selects the layout)
+      record + ca / pa        -> current / potential ability (u16)
+      record + layout offset  -> person sub-object
+      person + short_name / first_name / last_name -> name string
+      person + birth_doy / birth_year -> birth date
+      exe + game_date.rva     -> in-game date for age
 ```
 
 All offsets live in `src/offsets.toml`. Update only that file when the game
@@ -77,6 +106,7 @@ concrete walkthrough with real addresses and values.
 |---|---|
 | `src/fm24_manager.py` | Manager lookup, manager UID chain, and command-line entry point |
 | `src/fm24_team.py` | All controlled team UIDs and command-line entry point |
+| `src/fm24_players.py` | Player names, CA, PA, and ages for a team UID |
 | `src/fm24_memory.py` | Process access, low-level reads, and pointer vectors |
 | `src/fm24_config.py` | Load and validate `offsets.toml` |
 | `src/offsets.toml` | FM24 memory offsets |

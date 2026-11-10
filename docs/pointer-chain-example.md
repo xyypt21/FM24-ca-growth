@@ -81,3 +81,66 @@ team UID reads
   0xFCEF0F84 -> 0x773B5FD4                 2000379860
   0xFC355824 -> 0x00371331                 3609393
 ```
+
+## fm24_players.py
+
+```text
+team UID 920                            -> 0xFC221600 (see above)
+
+0xFC221600
+  + roster_begin 0x38
+  = 0xFC221638
+        read pointer -> 0xFA5C8870         player records begin
+        read pointer -> 0xFA5C8940         player records end at +0x8
+        (end - begin) / 8 = 26
+
+0xFA5C8870
+        read pointer -> 0x1038E63A8        player record (Leo Greiml)
+
+0x1038E63A8
+        read u32     -> 0x45A4E958         record magic -> person at +0x278
+
+0x1038E63A8
+  + ca 0x200
+  = 0x1038E65A8
+        read u16     -> 136                CA
+  + pa 0x202
+  = 0x1038E65AA
+        read u16     -> 136                PA
+
+0x1038E63A8
+  + person_off 0x278
+  = 0x1038E6620                          person sub-object
+
+0x1038E6620
+  + first_name 0x58
+  = 0x1038E6678
+        read pointer -> 0xFAA6BA28         name holder
+        read pointer -> 0xFFF9A1CC         string holder
+        read u32     -> 0x00000003         length = 3 ("Leo")
+
+0x1038E6620
+  + last_name 0x60
+  = 0x1038E6680
+        read pointer -> 0xFB028AB8
+        read pointer -> 0x1008D0FCC
+        read u32     -> 0x00000006         length = 6 ("Greiml")
+
+0x1038E6620
+  + birth_doy 0x44
+  = 0x1038E6664
+        read u16     -> 184                day of year (2001-07-03)
+  + birth_year 0x46
+  = 0x1038E6666
+        read u16     -> 2001               birth year
+
+exe base 0x140000000
+  + game_date.rva 0x631D5BC
+  = 0x14631D5BC
+        read u32     -> 0x07E9005B         in-game date 2025-04-01
+```
+
+A record whose magic is not in `[player.layouts]` is not a player record and is
+skipped. The short name is preferred when present; this player has none, so the
+name comes from first name + last name.
+```

@@ -11,7 +11,16 @@ CONFIG_PATH = Path(__file__).with_name("offsets.toml")
 Config = dict[str, Any]
 
 # Sections used by the current step. Add names here as features grow.
-REQUIRED_SECTIONS = ("manager", "person", "contract", "team", "club", "read")
+REQUIRED_SECTIONS = (
+    "manager",
+    "person",
+    "contract",
+    "team",
+    "club",
+    "player",
+    "game_date",
+    "read",
+)
 
 
 def load_config(path: Path = CONFIG_PATH) -> Config:
@@ -29,4 +38,15 @@ def load_config(path: Path = CONFIG_PATH) -> Config:
     ]
     if missing:
         raise RuntimeError(f"Offsets file {path} is missing: {', '.join(missing)}")
+
+    # TOML keys are strings, but record magics are numbers in the code.
+    layouts = config["player"].get("layouts", {})
+    try:
+        config["player"]["layouts"] = {
+            int(tag, 0): offset for tag, offset in layouts.items()
+        }
+    except ValueError as error:
+        raise RuntimeError(
+            f"Offsets file {path} has an invalid [player.layouts] key: {error}"
+        ) from error
     return config
