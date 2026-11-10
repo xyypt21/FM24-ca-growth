@@ -1,4 +1,4 @@
-"""Unit tests for the scipy CA/PA lineup selector."""
+"""Unit tests for the scipy CA/APA lineup selector."""
 
 from __future__ import annotations
 
@@ -8,7 +8,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from fm24_lineup import SLOTS, build_lineups  # noqa: E402
+from fm24_config import CapRule, GrowthSettings  # noqa: E402
+from fm24_lineup import SLOTS, build_lineups, predict_apa  # noqa: E402
+
+SETTINGS = GrowthSettings(2, 23, CapRule(18, 0.7, 22, 0.9))
 
 
 def player(
@@ -16,6 +19,7 @@ def player(
     ca: int,
     pa: int,
     positions: list[str],
+    age: float = 20.0,
 ) -> dict[str, object]:
     """Return a player dict with the fields used by the selector."""
     return {
@@ -24,7 +28,7 @@ def player(
         "name": f"Player {address}",
         "ca": ca,
         "pa": pa,
-        "age": 20.0,
+        "age": age,
         "positions": positions,
     }
 
@@ -40,9 +44,21 @@ def two_candidates(ca_values: tuple[int, int], pa_values: tuple[int, int]):
     return players
 
 
+def apa_candidates():
+    """CA and APA disagree: young CA 100 has APA 268, older CA 200 has APA 200."""
+    players = []
+    address = 1
+    for slot in SLOTS:
+        players.append(player(address, 100, 100, [slot], age=16.0))
+        address += 1
+        players.append(player(address, 200, 200, [slot], age=23.0))
+        address += 1
+    return players
+
+
 class BuildLineupsTest(unittest.TestCase):
-    def test_builds_ca_and_pa_squads(self) -> None:
-        lineups = build_lineups(two_candidates((200, 100), (200, 100)))
+    def test_builds_ca_and_apa_squads(self) -> None:
+        lineups = build_lineups(two_candidates((200, 100), (200, 100)), SETTINGS)
 
         self.assertEqual(len(lineups), 4)
         self.assertEqual([len(lineup) for _, lineup in lineups], [11] * 4)
@@ -55,25 +71,45 @@ class BuildLineupsTest(unittest.TestCase):
             self.assertEqual(len(addresses), len(set(addresses)))
 
     def test_ca_metric_puts_best_ca_in_first_xi(self) -> None:
-        lineups = build_lineups(two_candidates((200, 100), (200, 100)))
+        lineups = build_lineups(two_candidates((200, 100), (200, 100)), SETTINGS)
 
         self.assertTrue(all(player["ca"] == 200 for _, player in lineups[0][1]))
         self.assertTrue(all(player["ca"] == 100 for _, player in lineups[1][1]))
 
-    def test_pa_metric_puts_best_pa_in_first_xi(self) -> None:
-        lineups = build_lineups(two_candidates((200, 100), (100, 200)))
+    def test_apa_metric_uses_projected_ca(self) -> None:
+        lineups = build_lineups(apa_candidates(), SETTINGS)
 
-        self.assertTrue(all(player["pa"] == 200 for _, player in lineups[2][1]))
-        self.assertTrue(all(player["pa"] == 100 for _, player in lineups[3][1]))
+        self.assertTrue(all(player["ca"] == 100 for _, player in lineups[2][1]))
+        self.assertTrue(all(player["ca"] == 200 for _, player in lineups[3][1]))
 
     def test_raises_when_positions_cannot_be_filled(self) -> None:
         players = [player(index, 100, 120, ["MC"]) for index in range(1, 23)]
         with self.assertRaisesRegex(RuntimeError, "No eligible"):
-            build_lineups(players)
+            build_lineups(players, SETTINGS)
 
     def test_raises_when_there_are_too_few_players(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "at least"):
-            build_lineups(two_candidates((200, 100), (200, 100))[:21])
+            build_lineups(two_candidates((200, 100), (200, 100))[:21], SETTINGS)
+
+
+class PredictApaTest(unittest.TestCase):
+    def test_projects_young_player_to_max_age(self) -> None:
+        self.assertEqual(
+            predict_apa(player(1, 100, 120, ["ST"], age=16.0), SETTINGS), 268
+        )
+
+    def test_max_age_and_older_use_current_ca(self) -> None:
+        self.assertEqual(
+            predict_apa(player(1, 100, 120, ["ST"], age=23.0), SETTINGS), 100
+        )
+        self.assertEqual(
+            predict_apa(player(1, 100, 120, ["ST"], age=24.0), SETTINGS), 100
+        )
+
+    def test_unknown_age_uses_current_ca(self) -> None:
+        self.assertEqual(
+            predict_apa(player(1, 100, 120, ["ST"], age=None), SETTINGS), 100
+        )
 
 
 if __name__ == "__main__":

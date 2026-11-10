@@ -152,7 +152,7 @@ pythonw src/fm24_ca_growth_gui.pyw
 
 ## Pick a lineup
 
-Build CA and PA first/second 4-3-3 lineups from every controlled team with
+Build CA and APA first/second 4-3-3 lineups from every controlled team with
 scipy's assignment solver:
 
 ```powershell
@@ -164,21 +164,30 @@ The four lineups are:
 ```text
 CA First XI
 CA Second XI
-PA First XI
-PA Second XI
+APA First XI
+APA Second XI
+```
+
+APA projects current CA to `max_age` using the growth settings:
+
+```text
+age >= max_age: APA = CA
+age <  max_age: APA = CA + monthly_gain * 12 * (max_age - age)
 ```
 
 Example:
 
 ```text
 CA First XI
-Slot Name                          Age  CA  PA  Positions
-GK   Marius Müller                30.0 126 132  GK
-DL   Thomas Ouwejan               26.7 123 130  DL/DM/ML/WBL
+Slot Name                          Age  CA    APA  Positions
+GK   Marius Müller                30.0 126  126.0  GK
+DL   Thomas Ouwejan               26.7 123  123.0  DL/DM/ML/WBL
+DR   Brandon Soppy                21.3 127  167.8  DL/DR/MR/WBL/WBR
 ...
 ```
 
-- Each metric is selected separately: `ca` ranks by CA, `pa` ranks by PA.
+- `ca` ranks by current ability; `apa` ranks by projected CA.
+- `monthly_gain` and `max_age` come from `src/config.json`.
 - The best XI is selected first, then the second XI from the remaining players.
 - Positions are read from the player record (`>= 15` can play the slot).
 - The four lineups are printed to the console; no files are written.

@@ -1,8 +1,13 @@
-"""Pick CA and PA first/second 4-3-3 lineups with scipy's assignment solver.
+"""Pick CA and APA first/second 4-3-3 lineups with scipy's assignment solver.
 
-For each metric (CA and PA), scipy assigns players to the 11 formation slots.
+For each metric (CA and APA), scipy assigns players to the 11 formation slots.
 The best XI is selected first, then the same solver picks the second XI from the
 remaining players.
+
+APA projects CA to ``max_age`` using the monthly growth settings:
+
+    age >= max_age: APA = CA
+    age <  max_age: APA = CA + monthly_gain * 12 * (max_age - age)
 
 Run:
 
@@ -18,7 +23,7 @@ import time
 
 from scipy.optimize import linear_sum_assignment
 
-from fm24_config import load_config
+from fm24_config import GrowthSettings, load_config, load_growth_settings
 from fm24_memory import Memory
 from fm24_players import Player, all_players
 
@@ -39,7 +44,7 @@ SLOTS = (
     "AMR",
     "ST",
 )
-METRICS = ("ca", "pa")
+METRICS = ("ca", "apa")
 FORBIDDEN = 10**9
 
 
@@ -69,13 +74,25 @@ def select_lineup(
     return sorted(lineup, key=lambda entry: slots.index(entry[0]))
 
 
-def build_lineups(players: list[Player]) -> list[tuple[str, list[tuple[str, Player]]]]:
-    """Return CA first/second and PA first/second, in display order."""
+def predict_apa(player: Player, settings: GrowthSettings) -> float:
+    """Project CA to max_age using the configured monthly growth."""
+    age = player["age"]
+    ca = player["ca"]
+    if age is None or age >= settings.max_age:
+        return float(ca)
+    return ca + settings.monthly_gain * 12 * (settings.max_age - age)
+
+
+def build_lineups(
+    players: list[Player], settings: GrowthSettings
+) -> list[tuple[str, list[tuple[str, Player]]]]:
+    """Return CA first/second and APA first/second, in display order."""
+    enriched = [{**player, "apa": predict_apa(player, settings)} for player in players]
     lineups: list[tuple[str, list[tuple[str, Player]]]] = []
     for metric in METRICS:
-        first = select_lineup(players, metric)
+        first = select_lineup(enriched, metric)
         used = {id(player) for _, player in first}
-        remaining = [player for player in players if id(player) not in used]
+        remaining = [player for player in enriched if id(player) not in used]
         try:
             second = select_lineup(remaining, metric)
         except RuntimeError as error:
@@ -93,14 +110,14 @@ def format_lineups(
     lines: list[str] = []
     for label, lineup in lineups:
         lines.append(label)
-        lines.append(f"{'Slot':<5}{'Name':<28}{'Age':>5}{'CA':>4}{'PA':>4}  Positions")
+        lines.append(f"{'Slot':<5}{'Name':<28}{'Age':>5}{'CA':>4}{'APA':>7}  Positions")
         for slot, player in lineup:
             age = player["age"]
             age_text = "-" if age is None else f"{age:.1f}"
             positions = "/".join(player["positions"]) or "-"
             lines.append(
                 f"{slot:<5}{str(player['name']):<28}{age_text:>5}"
-                f"{player['ca']:>4}{player['pa']:>4}  {positions}"
+                f"{player['ca']:>4}{player['apa']:>7.1f}  {positions}"
             )
         lines.append("")
     return "\n".join(lines).rstrip()
@@ -109,12 +126,13 @@ def format_lineups(
 def main() -> int:
     """Refresh the lineups until interrupted."""
     config = load_config()
+    settings = load_growth_settings()
     try:
         while True:
             try:
                 with Memory.open(config) as memory:
                     players = all_players(memory)
-                print(format_lineups(build_lineups(players)))
+                print(format_lineups(build_lineups(players, settings)))
             except RuntimeError as error:
                 print(f"Error: {error}")
             time.sleep(INTERVAL)
