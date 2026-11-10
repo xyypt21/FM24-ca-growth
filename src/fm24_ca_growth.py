@@ -35,7 +35,7 @@ from fm24_config import (
     load_growth_settings,
 )
 from fm24_memory import Memory
-from fm24_players import game_date, team_players
+from fm24_players import all_players, game_date
 from fm24_team import user_club
 
 # How often the in-game date is checked.
@@ -93,11 +93,6 @@ def growth_target(ca: int, pa: int, age: float, settings: GrowthSettings) -> int
     return new_ca if new_ca <= cap else None
 
 
-def controlled_players(memory: Memory) -> list[Player]:
-    """Return every player record in every controlled team."""
-    return [player for _, players in team_players(memory) for player in players]
-
-
 def growth_plan(players: Iterable[Player], settings: GrowthSettings) -> list[Change]:
     """Return the planned CA changes, deduplicated by player record address.
 
@@ -139,7 +134,7 @@ def settle_month(
     memory: Memory, settings: GrowthSettings, log: Log = print
 ) -> list[Change]:
     """Write the planned CA changes and return the ones that were verified."""
-    players = controlled_players(memory)
+    players = all_players(memory)
     if not players:
         raise RuntimeError("No players found: save not loaded or wrong offsets")
 
@@ -165,7 +160,7 @@ def show_plan(
     cannot be read, so the watcher can keep running.
     """
     try:
-        players = controlled_players(memory)
+        players = all_players(memory)
     except RuntimeError as error:
         log(f"Cannot read players for preview ({error}).")
         return False

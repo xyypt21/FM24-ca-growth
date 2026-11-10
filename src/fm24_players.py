@@ -25,6 +25,8 @@ from fm24_config import Config, load_config
 from fm24_memory import Memory
 from fm24_team import club_teams
 
+Player = dict[str, object]
+
 
 def parse_game_date(value: int) -> datetime.date | None:
     """Convert the packed in-game date to a date; return None when implausible."""
@@ -176,6 +178,20 @@ def team_players(
         if uid:
             teams.append((uid, players_in_team(memory, team, today)))
     return teams
+
+
+def all_players(memory: Memory) -> list[Player]:
+    """Return every unique player across all controlled teams."""
+    players: list[Player] = []
+    seen: set[int] = set()
+    for _, roster in team_players(memory):
+        for player in roster:
+            address = player["address"]
+            if address in seen:
+                continue
+            seen.add(address)
+            players.append(player)
+    return players
 
 
 def read_players(

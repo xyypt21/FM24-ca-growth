@@ -26,7 +26,7 @@ from pathlib import Path
 
 from fm24_config import Config, load_config
 from fm24_memory import Memory
-from fm24_players import team_players
+from fm24_players import Player, all_players
 
 # 4-3-3: one goalkeeper, four defenders, three midfielders, three forwards.
 SLOTS = (
@@ -44,8 +44,6 @@ SLOTS = (
 )
 POSITION_MIN = 15
 OUTPUT = Path(__file__).resolve().parents[1] / "output" / "lineup.csv"
-
-Player = dict[str, object]
 
 
 def read_positions(memory: Memory, address: int) -> list[str]:
@@ -66,21 +64,10 @@ def read_positions(memory: Memory, address: int) -> list[str]:
 
 def load_players(memory: Memory) -> list[Player]:
     """Read every unique player from the controlled teams, with positions."""
-    players: list[Player] = []
-    seen: set[int] = set()
-    for _, roster in team_players(memory):
-        for player in roster:
-            address = player["address"]
-            if address in seen:
-                continue
-            seen.add(address)
-            players.append(
-                {
-                    **player,
-                    "positions": read_positions(memory, address),
-                }
-            )
-    return players
+    return [
+        {**player, "positions": read_positions(memory, player["address"])}
+        for player in all_players(memory)
+    ]
 
 
 def score(player: Player) -> tuple[int, int]:
