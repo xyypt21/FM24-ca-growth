@@ -9,13 +9,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from manager_uid import manager_address, manager_uid  # noqa: E402
+from team_uid import team_uid  # noqa: E402
 
 BASE = 0x140000000
 CONTAINER = 0x20000000
 BEGIN = 0x30000000
 MANAGER = 0x40000000
 PERSON = MANAGER + 0x450
+CONTRACT = 0x50000000
+TEAM = 0x60000000
 UID = 2002076260
+TEAM_UID = 920
 
 CONFIG = {
     "manager": {
@@ -23,7 +27,9 @@ CONFIG = {
         "vector_off": 0x18,
         "person_off": 0x450,
     },
-    "person": {"uid_off": 0x0C},
+    "person": {"uid_off": 0x0C, "contract_off": 0xC8},
+    "contract": {"team_off": 0x10},
+    "team": {"uid_off": 0x0C},
     "read": {"min_ptr": 0x10000, "max_ptr": 0x7FF000000000},
 }
 
@@ -103,6 +109,57 @@ class ManagerUidTest(unittest.TestCase):
         )
         with self.assertRaisesRegex(RuntimeError, "manager UID"):
             manager_uid(memory)
+
+
+def manager_memory(
+    values: dict[int, int] | None = None,
+    u32: dict[int, int] | None = None,
+) -> FakeMemory:
+    """Return a FakeMemory with the manager chain already in place."""
+    pointers = {
+        BASE + 0x1000: CONTAINER,
+        CONTAINER + 0x18: BEGIN,
+        BEGIN: MANAGER,
+    }
+    pointers.update(values or {})
+    return FakeMemory(pointers, u32)
+
+
+class TeamUidTest(unittest.TestCase):
+    def test_follows_the_contract_chain(self) -> None:
+        memory = manager_memory(
+            {
+                PERSON + 0xC8: CONTRACT,
+                CONTRACT + 0x10: TEAM,
+            },
+            {TEAM + 0x0C: TEAM_UID},
+        )
+        self.assertEqual(team_uid(memory), TEAM_UID)
+
+    def test_missing_contract_raises(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "No team belongs"):
+            team_uid(manager_memory())
+
+    def test_invalid_contract_raises(self) -> None:
+        memory = manager_memory({PERSON + 0xC8: 0x10})
+        with self.assertRaisesRegex(RuntimeError, "No team belongs"):
+            team_uid(memory)
+
+    def test_missing_team_raises(self) -> None:
+        memory = manager_memory({PERSON + 0xC8: CONTRACT})
+        with self.assertRaisesRegex(RuntimeError, "No team belongs"):
+            team_uid(memory)
+
+    def test_zero_team_uid_raises(self) -> None:
+        memory = manager_memory(
+            {
+                PERSON + 0xC8: CONTRACT,
+                CONTRACT + 0x10: TEAM,
+            },
+            {TEAM + 0x0C: 0},
+        )
+        with self.assertRaisesRegex(RuntimeError, "team UID"):
+            team_uid(memory)
 
 
 if __name__ == "__main__":

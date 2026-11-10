@@ -1,6 +1,7 @@
 # FM24 CA Growth Final
 
-FM24 memory tooling. The first step, reading the human manager's UID, is done.
+FM24 memory tooling. Currently reads the human manager UID and the UID of the
+team they control.
 
 ## Requirements
 
@@ -28,6 +29,20 @@ The script prints one UID line:
 
 If the game runs as administrator, run this tool as administrator too.
 
+## Read the managed team UID
+
+```powershell
+python src/team_uid.py
+```
+
+Example output:
+
+```text
+920
+```
+
+The first team can share the club UID; youth teams have their own UID.
+
 ## Pointer chain
 
 ```text
@@ -35,7 +50,11 @@ exe + manager.container_rva   -> manager container
       container + vector_off  -> array begin
       begin                   -> human manager record (you)
       manager + person_off    -> person sub-object
-      person + uid_off        -> UID (u32)
+      person + uid_off        -> manager UID (u32)
+
+      person + contract_off   -> contract
+      contract + team_off     -> managed team
+      team + uid_off          -> team UID (u32)
 ```
 
 All offsets live in `src/offsets.toml`. Update only that file when the game
@@ -49,6 +68,7 @@ concrete walkthrough with real addresses and values.
 | File | Responsibility |
 |---|---|
 | `src/manager_uid.py` | Command-line entry point and pointer chain for the manager UID |
+| `src/team_uid.py` | Command-line entry point and pointer chain for the team UID |
 | `src/fm24_memory.py` | Open the process, read bytes, pointers, and u32 values |
 | `src/fm24_config.py` | Load and validate `offsets.toml` |
 | `src/offsets.toml` | FM24 memory offsets |

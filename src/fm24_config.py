@@ -11,7 +11,7 @@ CONFIG_PATH = Path(__file__).with_name("offsets.toml")
 Config = dict[str, Any]
 
 # Sections used by the current step. Add names here as features grow.
-REQUIRED_SECTIONS = ("manager", "person", "read")
+REQUIRED_SECTIONS = ("manager", "person", "contract", "team", "read")
 
 
 def load_config(path: Path = CONFIG_PATH) -> Config:

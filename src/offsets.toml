@@ -26,6 +26,21 @@ person_off = 0x450
 # In player records this field is at record + 0x284, which is person offset
 # 0x278 + 0xC.
 uid_off = 0x0C
+# Field offset: person + value -> contract pointer.
+contract_off = 0xC8
+
+
+[contract]
+# Field offset: contract + value -> managed team pointer.
+team_off = 0x10
+
+
+[team]
+# Field offset: team + value -> UID (u32).
+# The first team can share the club UID; youth teams have their own UID.
+uid_off = 0x0C
+# Field offset: team + value -> club pointer.
+club_off = 0x30
 
 
 [read]
