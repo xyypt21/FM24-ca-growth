@@ -77,15 +77,16 @@ def load_config(path: Path = CONFIG_PATH) -> Config:
         raise RuntimeError(f"Offsets file {path} is missing: {', '.join(missing)}")
 
     # TOML keys are strings, but record type tags are numbers in the code.
-    layouts = config["player"].get("layouts", {})
-    try:
-        config["player"]["layouts"] = {
-            int(tag, 0): offset for tag, offset in layouts.items()
-        }
-    except ValueError as error:
-        raise RuntimeError(
-            f"Offsets file {path} has an invalid [player.layouts] key: {error}"
-        ) from error
+    for name in ("layouts", "contract_layouts"):
+        table = config["player"].get(name, {})
+        try:
+            config["player"][name] = {
+                int(tag, 0): offset for tag, offset in table.items()
+            }
+        except ValueError as error:
+            raise RuntimeError(
+                f"Offsets file {path} has an invalid [player.{name}] key: {error}"
+            ) from error
     return config
 
 

@@ -211,4 +211,16 @@ The lineup selector builds four lineups: CA first XI, CA second XI, APA first XI
 and APA second XI. Each metric is solved separately: the best XI first, then the
 second XI from the remaining players. APA projects CA to `max_age` with
 `min(PA, round(CA + monthly_gain * 12 * (max_age - age)))`; at or above
-`max_age` it is CA.
+`max_age` it is CA. Players on loan are excluded.
+
+Loan detection compares two club UIDs with the controlled team UIDs:
+
+```text
+record + current_club 0x130 -> current club entry
+contract + contract_club 0x10 -> owner club entry
+entry + entry_struct 0x30 -> club structure
+club + uid_off 0x0C -> club UID
+```
+
+If the current club is not controlled -> loaned out. If the owner club is not
+controlled -> loaned in. Either way the player is skipped.

@@ -29,6 +29,11 @@ CLUB = 0x70000000
 YOUTH_TEAM = 0x80000000
 PLAYER = 0x90000000
 OTHER_RECORD = 0xA0000000
+CURRENT_ENTRY = 0xC0000000
+OWNER_ENTRY = 0xD0000000
+CURRENT_CLUB = 0xE0000000
+OWNER_CLUB = 0xF0000000
+PLAYER_CONTRACT = 0x110000000
 SHORT_STRING = 0xB0000000
 FIRST_STRING = 0xB0001000
 LAST_STRING = 0xB0002000
@@ -57,12 +62,20 @@ CONFIG = {
     },
     "contract": {"team_off": 0x10},
     "team": {"uid_off": 0x0C, "club_off": 0x30, "roster_begin": 0x38},
-    "club": {"teams_begin": 0x18, "linked_teams_begin": 0x30},
+    "club": {
+        "teams_begin": 0x18,
+        "linked_teams_begin": 0x30,
+        "uid_off": 0x0C,
+        "entry_struct": 0x30,
+    },
     "player": {
         "ca": 0x200,
         "pa": 0x202,
         "record_read": RECORD_READ,
         "layouts": LAYOUTS,
+        "contract_layouts": {PLAYER_TAG: 0x340, PLAYER_STAFF_TAG: 0x430},
+        "current_club": 0x130,
+        "contract_club": 0x10,
         "positions": {"GK": 0x208, "ST": 0x214},
     },
     "game_date": {"rva": 0x2000},
@@ -167,6 +180,25 @@ def team_memory(
     return FakeMemory(blobs, u32, vectors)
 
 
+def loan_memory(current_uid: int, owner_uid: int) -> FakeMemory:
+    """Return a memory with one player's current and owner clubs wired up."""
+    record = bytearray(make_record(100, 150))
+    record[0x130:0x138] = CURRENT_ENTRY.to_bytes(8, "little")
+    record[0x340:0x348] = PLAYER_CONTRACT.to_bytes(8, "little")
+    return team_memory(
+        [TEAM],
+        u32={
+            PLAYER_CONTRACT + 0x10: OWNER_ENTRY,
+            CURRENT_ENTRY + 0x30: CURRENT_CLUB,
+            OWNER_ENTRY + 0x30: OWNER_CLUB,
+            CURRENT_CLUB + 0x0C: current_uid,
+            OWNER_CLUB + 0x0C: owner_uid,
+        },
+        vectors={TEAM + 0x38: [PLAYER]},
+        blobs={PLAYER: bytes(record)},
+    )
+
+
 class PlayerReadTest(unittest.TestCase):
     def test_reads_name_ca_pa_and_age(self) -> None:
         memory = team_memory(
@@ -189,6 +221,7 @@ class PlayerReadTest(unittest.TestCase):
                 "pa": 150,
                 "age": 24.0,
                 "positions": [],
+                "loan": "",
             },
         )
 
@@ -251,6 +284,21 @@ class PlayerReadTest(unittest.TestCase):
         )
         players = players_in_team(memory, TEAM)
         self.assertEqual(players[0]["positions"], ["GK"])
+
+    def test_detects_loaned_in_player(self) -> None:
+        memory = loan_memory(TEAM_UID, 999)
+        players = players_in_team(memory, TEAM, our_uids={TEAM_UID})
+        self.assertEqual(players[0]["loan"], "loaned in")
+
+    def test_detects_loaned_out_player(self) -> None:
+        memory = loan_memory(999, TEAM_UID)
+        players = players_in_team(memory, TEAM, our_uids={TEAM_UID})
+        self.assertEqual(players[0]["loan"], "loaned out")
+
+    def test_owned_player_is_not_on_loan(self) -> None:
+        memory = loan_memory(TEAM_UID, TEAM_UID)
+        players = players_in_team(memory, TEAM, our_uids={TEAM_UID})
+        self.assertEqual(players[0]["loan"], "")
 
     def test_groups_players_by_controlled_team_uid(self) -> None:
         memory = team_memory(

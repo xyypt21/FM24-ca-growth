@@ -54,12 +54,17 @@ roster_begin = 0x38
 
 
 [club]
-# Field offset: club + value -> owned teams array begin (end is at +0x20).
+# Field offset: club + value -> UID (u32).
+uid_off = 0x0C
+# Field offset: owned teams array begin (end is at +0x20).
 # Usually the first team, reserves, U19, and U18.
 teams_begin = 0x18
-# Field offset: club + value -> linked teams array begin (end is at +0x38).
+# Field offset: linked teams array begin (end is at +0x38).
 # The B team lives under another club entry and is linked from here.
 linked_teams_begin = 0x30
+# Field offset: club entry (or team) + value -> club structure. The UID is read
+# from the structure because a youth-team pointer's own +0xC is a team UID.
+entry_struct = 0x30
 
 
 [player]
@@ -67,8 +72,12 @@ linked_teams_begin = 0x30
 ca = 0x200
 pa = 0x202
 # Read this many bytes at once: it must cover the last name pointer in the
-# furthest person sub-object (0x368 + 0x68 + 8).
+# furthest person sub-object (0x368 + 0x68 + 8) and the contract pointer.
 record_read = 0x3D8
+# Field offset: record + value -> current club entry (or team) pointer.
+current_club = 0x130
+# Field offset: contract + value -> owner club entry (or team) pointer.
+contract_club = 0x10
 
 
 # Position ratings: record + offset -> one byte, 20 = best, 1 = cannot play.
@@ -100,6 +109,13 @@ WBR = 0x216
 [player.layouts]
 "0x45A4E958" = 0x278
 "0x45C7E798" = 0x368
+
+
+# Record type tag -> contract pointer offset. Used to find the owner club when
+# deciding whether a player is on loan.
+[player.contract_layouts]
+"0x45A4E958" = 0x340
+"0x45C7E798" = 0x430
 
 
 [game_date]

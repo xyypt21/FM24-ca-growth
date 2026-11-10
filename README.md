@@ -190,6 +190,7 @@ DR   Brandon Soppy                21.3 127    168  DL/DR/MR/WBL/WBR
 - `monthly_gain` and `max_age` come from `src/config.json`.
 - The best XI is selected first, then the second XI from the remaining players.
 - Positions are read from the player record (`>= 15` can play the slot).
+- Players on loan (loaned in or loaned out) are excluded.
 - The four lineups are printed to the console; no files are written.
 
 ## Build a Windows exe
@@ -241,6 +242,9 @@ exe + manager.container_rva   -> manager container
       exe + game_date.rva     -> in-game date for age
 
       record + positions      -> one byte per position (15+ = can play)
+      record + current_club   -> current club entry
+      contract + contract_club -> owner club entry
+      entry + entry_struct    -> club; club + uid_off -> club UID (loan check)
       record + ca             -> write u16 current ability (monthly growth)
 ```
 

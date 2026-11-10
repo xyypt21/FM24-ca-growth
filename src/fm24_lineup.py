@@ -88,6 +88,7 @@ def build_lineups(
     players: list[Player], settings: GrowthSettings
 ) -> list[tuple[str, list[tuple[str, Player]]]]:
     """Return CA first/second and APA first/second, in display order."""
+    players = [player for player in players if not player.get("loan")]
     enriched = [{**player, "apa": predict_apa(player, settings)} for player in players]
     lineups: list[tuple[str, list[tuple[str, Player]]]] = []
     for metric in METRICS:

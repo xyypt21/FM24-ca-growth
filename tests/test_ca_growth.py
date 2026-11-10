@@ -70,12 +70,21 @@ CONFIG = {
     },
     "contract": {"team_off": 0x10},
     "team": {"uid_off": 0x0C, "club_off": 0x30, "roster_begin": 0x38},
-    "club": {"teams_begin": 0x18, "linked_teams_begin": 0x30},
+    "club": {
+        "teams_begin": 0x18,
+        "linked_teams_begin": 0x30,
+        "uid_off": 0x0C,
+        "entry_struct": 0x30,
+    },
     "player": {
         "ca": 0x200,
         "pa": 0x202,
         "record_read": RECORD_READ,
         "layouts": {PLAYER_TAG: 0x278},
+        "contract_layouts": {PLAYER_TAG: 0x340},
+        "current_club": 0x130,
+        "contract_club": 0x10,
+        "positions": {},
     },
     "game_date": {"rva": 0x2000},
     "read": {

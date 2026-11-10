@@ -20,6 +20,7 @@ def player(
     pa: int,
     positions: list[str],
     age: float = 20.0,
+    loan: str = "",
 ) -> dict[str, object]:
     """Return a player dict with the fields used by the selector."""
     return {
@@ -30,6 +31,7 @@ def player(
         "pa": pa,
         "age": age,
         "positions": positions,
+        "loan": loan,
     }
 
 
@@ -86,6 +88,15 @@ class BuildLineupsTest(unittest.TestCase):
         players = [player(index, 100, 120, ["MC"]) for index in range(1, 23)]
         with self.assertRaisesRegex(RuntimeError, "No eligible"):
             build_lineups(players, SETTINGS)
+
+    def test_skips_loaned_players(self) -> None:
+        players = two_candidates((200, 100), (200, 100))
+        players[0]["loan"] = "loaned in"
+        players.append(player(999, 50, 60, ["GK"]))
+
+        lineups = build_lineups(players, SETTINGS)
+        addresses = {player["address"] for _, lineup in lineups for _, player in lineup}
+        self.assertNotIn(1, addresses)
 
     def test_raises_when_there_are_too_few_players(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "at least"):

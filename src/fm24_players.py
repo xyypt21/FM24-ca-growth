@@ -124,16 +124,71 @@ def read_u16(record: bytes, offset: int) -> int:
     return int.from_bytes(record[offset : offset + 2], "little")
 
 
+def read_affiliation_uid(memory: Memory, pointer: int | None) -> int | None:
+    """Resolve a club entry (or team) pointer to the club structure's UID."""
+    club_cfg = memory.config["club"]
+    if not pointer or not memory.is_valid_ptr(pointer):
+        return None
+    club = memory.read_ptr(pointer + club_cfg["entry_struct"])
+    if not club or not memory.is_valid_ptr(club):
+        return None
+    return memory.read_u32(club + club_cfg["uid_off"])
+
+
+def read_loan(
+    memory: Memory,
+    record: bytes,
+    contract_offset: int | None,
+    our_uids: set[int],
+) -> str:
+    """Return ``loaned out``, ``loaned in``, or an empty string."""
+    player_cfg = memory.config["player"]
+    current_offset = player_cfg["current_club"]
+    current = int.from_bytes(record[current_offset : current_offset + 8], "little")
+    current_uid = read_affiliation_uid(memory, current)
+
+    owner_uid = None
+    if contract_offset is not None and contract_offset + 8 <= len(record):
+        contract = int.from_bytes(
+            record[contract_offset : contract_offset + 8], "little"
+        )
+        if contract and memory.is_valid_ptr(contract):
+            owner = memory.read_ptr(contract + player_cfg["contract_club"])
+            owner_uid = read_affiliation_uid(memory, owner)
+
+    if current_uid is None or owner_uid is None:
+        return ""
+    if current_uid not in our_uids:
+        return "loaned out"
+    if owner_uid not in our_uids:
+        return "loaned in"
+    return ""
+
+
+def controlled_uids(memory: Memory) -> set[int]:
+    """Return the UIDs of every controlled team."""
+    uid_off = memory.config["team"]["uid_off"]
+    return {
+        uid for team in club_teams(memory) if (uid := memory.read_u32(team + uid_off))
+    }
+
+
 def players_in_team(
-    memory: Memory, team: int, today: datetime.date | None = None
+    memory: Memory,
+    team: int,
+    today: datetime.date | None = None,
+    our_uids: set[int] | None = None,
 ) -> list[Player]:
     """Read every player record in a team; records that are not players are skipped."""
     player_cfg = memory.config["player"]
     person_cfg = memory.config["person"]
     layouts: dict[int, int] = player_cfg["layouts"]
+    contract_layouts: dict[int, int] = player_cfg.get("contract_layouts", {})
     positions_cfg: dict[str, int] = player_cfg.get("positions", {})
     record_size = player_cfg["record_read"]
     team_uid = memory.read_u32(team + memory.config["team"]["uid_off"]) or 0
+    if our_uids is None:
+        our_uids = controlled_uids(memory)
 
     if today is None:
         today = game_date(memory)
@@ -148,7 +203,8 @@ def players_in_team(
 
         # The first 4 bytes are a record type tag, not a pointer and not part of
         # the person data. It tells us where the person sub-object starts.
-        person_offset = layouts.get(int.from_bytes(record[:4], "little"))
+        tag = int.from_bytes(record[:4], "little")
+        person_offset = layouts.get(tag)
         if person_offset is None:
             continue
         person = record[person_offset:]
@@ -170,6 +226,12 @@ def players_in_team(
                     for code, offset in positions_cfg.items()
                     if offset < len(record) and record[offset] >= POSITION_MIN
                 ],
+                "loan": read_loan(
+                    memory,
+                    record,
+                    contract_layouts.get(tag),
+                    our_uids,
+                ),
             }
         )
     return players
@@ -180,8 +242,11 @@ def all_players(memory: Memory) -> list[Player]:
     players: list[Player] = []
     seen: set[int] = set()
     today = game_date(memory)
-    for team in club_teams(memory):
-        for player in players_in_team(memory, team, today):
+    teams = club_teams(memory)
+    uid_off = memory.config["team"]["uid_off"]
+    our_uids = {uid for team in teams if (uid := memory.read_u32(team + uid_off))}
+    for team in teams:
+        for player in players_in_team(memory, team, today, our_uids):
             address = player["address"]
             if address in seen:
                 continue
