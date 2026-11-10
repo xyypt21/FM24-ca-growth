@@ -179,5 +179,6 @@ PA. Players older than `max_age` (default 22) are also skipped.
 Save reload detection
 
 The human manager address changes when the game (re)loads a save. The watcher
-detects this change and re-reads all addresses; the settled month is kept so a
-reload does not re-settle a month already settled.
+detects this change and resets the state to the current month so no month is
+settled twice. Growth only happens when the month actually changes after the
+reload.

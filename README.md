@@ -109,8 +109,8 @@ team. Rules:
 - Invalid CA/PA values (outside `1..200`, or CA above PA) are skipped.
 - Players older than `max_age` from `src/config.json` (default **22**) are skipped.
 - Rosters, CA, PA, and record addresses are re-read on every settlement.
-- Starting on the 1st settles immediately. If a holiday skips the 1st, the first
-  new month seen afterwards is paid once.
+- Growth only happens when the in-game month actually changes; starting on the
+  1st does not trigger an immediate settlement.
 - Stop with Ctrl+C.
 
 Save reload detection

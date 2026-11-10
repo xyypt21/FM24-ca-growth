@@ -7,8 +7,9 @@ CA never grows above PA, so players already at their potential are skipped.
 This script watches the in-game date; it does not use the system clock. It
 re-reads the rosters on every settlement, so CA, PA, age, and record addresses
 are always current. It also detects save reloads: when the human manager address
-changes, all previously read addresses are stale. The settled month is kept so
-a reload does not re-settle a month already settled.
+changes, the state resets to the current month so no month is settled twice.
+Growth only happens when the month actually changes; starting on the 1st does
+not trigger an immediate settlement.
 
 Usage:
 
@@ -165,10 +166,10 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
     """Settle once per new in-game month until interrupted.
 
     Save reload detection: the human manager object address changes every time
-    the game (re)loads a save. When it changes, all previously read roster,
-    team, and player addresses are stale. The settled month is intentionally
-    not reset: reloading on July 4 must not re-settle a month already settled
-    on July 1.
+    the game (re)loads a save. When it changes, the state resets to the current
+    month so no month is settled twice. Growth only happens when the month
+    actually changes; starting on the 1st does not trigger an immediate
+    settlement.
     """
     today = game_date(memory)
     if today is None:
@@ -176,12 +177,7 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
 
     last_manager = manager_address(memory)
     last_month = month_key(today)
-    if today.day == 1:
-        # Started on the 1st: this month has not been paid by this run.
-        last_month -= 1
-        print(f"Game date {today}; starting on the 1st, settling now.")
-    else:
-        print(f"Game date {today}; waiting for the next month.")
+    print(f"Game date {today}; waiting for the next month.")
 
     while True:
         time.sleep(POLL_SECONDS)
@@ -189,30 +185,24 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
         if now is None:
             continue
 
-        # Save reload: the manager address changes when a save is (re)loaded.
-        # All previously read addresses are stale, but the settled month is kept
-        # so a reload does not re-settle the current month.
         current_manager = manager_address(memory)
         if current_manager != last_manager:
             print(
                 f"Save reloaded at {now}; manager address changed "
                 f"0x{last_manager:X} -> 0x{current_manager:X}. "
-                f"Addresses are stale; re-reading roster on next settlement."
+                f"Resetting state; waiting for next month."
             )
             last_manager = current_manager
+            last_month = month_key(now)
             continue
 
         key = month_key(now)
         if key == last_month:
             continue
         if key < last_month:
-            # A save reload can move the date backwards; adopt it without paying.
             print(f"In-game date moved back to {now}; resetting the month.")
             last_month = key
             continue
-
-        if now.day != 1:
-            print(f"{now}: month changed without seeing the 1st; settling once.")
 
         try:
             written = settle_month(memory, gain, max_age_value)
