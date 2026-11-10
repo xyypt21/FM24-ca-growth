@@ -177,7 +177,7 @@ age >= max_age: APA = CA
 age <  max_age: APA = min(PA, round(CA + monthly_gain * 12 * (max_age - age)))
 
 age >= max_age: ACA = CA
-age <  max_age: ACA = min(CA + 6 * monthly_gain, cap, APA)
+age <  max_age: ACA = max(CA, min(CA + 6 * monthly_gain, cap, APA))
 ```
 
 Example:

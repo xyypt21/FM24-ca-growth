@@ -12,7 +12,7 @@ APA projects CA to ``max_age`` using the monthly growth settings:
 ACA adds six months of growth, capped by the age cap and APA:
 
     age >= max_age: ACA = CA
-    age <  max_age: ACA = min(CA + 6 * monthly_gain, cap, APA)
+    age <  max_age: ACA = max(CA, min(CA + 6 * monthly_gain, cap, APA))
 
 Run:
 
@@ -91,13 +91,14 @@ def predict_apa(player: Player, settings: GrowthSettings) -> int:
 
 
 def predict_aca(player: Player, settings: GrowthSettings) -> int:
-    """CA plus six months of growth, capped by the age cap and APA."""
+    """CA plus six months of growth, capped by cap and APA, never below CA."""
     age = player["age"]
     ca = player["ca"]
     if age is None or age >= settings.max_age:
         return ca
     cap = growth_cap(age, player["pa"], settings.cap)
-    return min(ca + 6 * settings.monthly_gain, cap, predict_apa(player, settings))
+    aca = min(ca + 6 * settings.monthly_gain, cap, predict_apa(player, settings))
+    return max(ca, aca)
 
 
 def build_lineups(

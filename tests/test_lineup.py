@@ -162,9 +162,9 @@ class PredictAcaTest(unittest.TestCase):
             predict_aca(player(1, 100, 200, ["ST"], age=16.0), SETTINGS), 112
         )
 
-    def test_capped_by_age_cap(self) -> None:
+    def test_never_drops_below_ca(self) -> None:
         self.assertEqual(
-            predict_aca(player(1, 180, 200, ["ST"], age=17.0), SETTINGS), 140
+            predict_aca(player(1, 180, 200, ["ST"], age=17.0), SETTINGS), 180
         )
 
     def test_capped_by_apa(self) -> None:
