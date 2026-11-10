@@ -3,13 +3,27 @@
 from __future__ import annotations
 
 import json
+import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-CONFIG_PATH = Path(__file__).with_name("offsets.toml")
-SETTINGS_PATH = Path(__file__).with_name("config.json")
+
+def _app_dir() -> Path:
+    """Return the directory holding the config files.
+
+    In a PyInstaller build the files sit next to the exe so config.json stays
+    writable. Running from source keeps using the ``src`` directory.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+APP_DIR = _app_dir()
+CONFIG_PATH = APP_DIR / "offsets.toml"
+SETTINGS_PATH = APP_DIR / "config.json"
 
 Config = dict[str, Any]
 

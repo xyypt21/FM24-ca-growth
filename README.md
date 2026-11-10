@@ -149,6 +149,27 @@ pythonw src/fm24_ca_growth_gui.pyw
   - `age >= max_age`: no CA growth
 - Startup and save reload still print the automatic preview into the log.
 
+## Build a Windows exe
+
+GitHub Actions builds the GUI automatically:
+
+- Go to **Actions** -> **Build Windows exe** -> **Run workflow**, or
+- push a tag such as `v1.0.0` to also attach the zip to a GitHub release.
+
+The workflow runs the tests, builds `FM24CAGrowth.exe` with PyInstaller, and
+uploads `FM24CAGrowth-windows.zip`. The zip contains the exe plus
+`offsets.toml` and `config.json`; keep those next to the exe because the app
+reads them from its own folder and writes `config.json` there.
+
+To build locally:
+
+```powershell
+python -m pip install pymem pyinstaller
+pyinstaller --noconfirm --clean --onefile --windowed --collect-submodules pymem --name FM24CAGrowth src/fm24_ca_growth_gui.pyw
+Copy-Item src/offsets.toml dist/
+Copy-Item src/config.json dist/
+```
+
 ## Pointer chain
 
 ```text
@@ -191,6 +212,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_ca_growth_gui.pyw` | Tkinter GUI for the CA growth watcher |
+| `.github/workflows/build-exe.yml` | Build the Windows exe on GitHub Actions |
 | `src/fm24_memory.py` | Process access, low-level reads/writes, and pointer vectors |
 | `src/config.json` | Growth settings: `monthly_gain`, `max_age`, and the linear `cap` |
 | `src/fm24_config.py` | Load and validate `offsets.toml` and `config.json` |
