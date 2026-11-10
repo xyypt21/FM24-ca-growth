@@ -99,6 +99,13 @@ class GrowthGui:
             f"{cap.end_age:g}..{settings.max_age} -> PA"
         )
 
+    def _schedule(self, callback) -> None:
+        """Run a callback on the Tk thread, ignoring a closed window."""
+        try:
+            self.root.after(0, callback)
+        except tk.TclError:
+            pass
+
     def _log(self, message: str) -> None:
         """Thread-safe log: queue the line for the Tk thread."""
         self.messages.put(message)
@@ -151,7 +158,7 @@ class GrowthGui:
         except Exception as error:  # noqa: BLE001 - show unexpected errors in the GUI
             self._log(f"Unexpected error: {error}")
         finally:
-            self.root.after(0, self._on_stopped)
+            self._schedule(self._on_stopped)
 
     def _stop(self) -> None:
         self._set_status("Stopping...")
@@ -186,7 +193,7 @@ class GrowthGui:
         except Exception as error:  # noqa: BLE001 - show unexpected errors in the GUI
             self._log(f"Unexpected error: {error}")
         finally:
-            self.root.after(0, self._on_preview_done)
+            self._schedule(self._on_preview_done)
 
     def _on_preview_done(self) -> None:
         self.preview_button.configure(state="normal")
