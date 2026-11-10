@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+
+# 虚拟环境
+.venv/
+venv/
+
+# ruff 的缓存
+.ruff_cache/
+
+# 导出的数据
+output/
+
+*.log

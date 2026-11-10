@@ -1,0 +1,27 @@
+# Run this tool directly from the repository (python manager_uid.py); do not
+# install it. offsets.toml must sit next to the scripts, so there is no
+# [build-system] or [project.scripts] section.
+
+[project]
+name = "fm24-ca-growth-final"
+version = "0.1.0"
+description = "FM24 memory tooling: human manager UID, teams, and players"
+requires-python = ">=3.11"  # tomllib is in the standard library from 3.11
+dependencies = [
+    "pymem",   # process memory access
+    "psutil",  # locate fm.exe by process name
+]
+
+[tool.ruff]
+# Matches the convention used in the code: 88 characters per line.
+line-length = 88
+# tomllib requires Python 3.11; do not rewrite for older versions.
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# Long human-readable messages are fine; wrapping them is not worth the churn.
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fm24_config", "fm24_memory", "manager_uid"]
