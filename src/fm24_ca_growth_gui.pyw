@@ -88,10 +88,6 @@ class GrowthGui:
         self._field(form, 2, 0, "Cap end age", self.end_age_var)
         self._field(form, 2, 2, "Cap end ratio (of PA)", self.end_ratio_var)
 
-        ttk.Button(form, text="How cap works", command=self._show_cap_help).grid(
-            row=3, column=0, sticky="w", pady=(8, 0)
-        )
-
         controls = ttk.Frame(self.root)
         controls.pack(fill="x", **padding)
 
@@ -105,6 +101,9 @@ class GrowthGui:
             controls, text="Preview next settlement", command=self._preview
         )
         self.preview_button.pack(side="left", padx=(0, 6))
+        ttk.Button(controls, text="How cap works", command=self._show_cap_help).pack(
+            side="left", padx=(0, 6)
+        )
         ttk.Button(controls, text="Clear log", command=self._clear_log).pack(
             side="left"
         )
