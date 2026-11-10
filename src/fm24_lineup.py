@@ -1,9 +1,8 @@
-"""Pick first and second 4-3-3 lineups with scipy's assignment solver.
+"""Pick CA and PA first/second 4-3-3 lineups with scipy's assignment solver.
 
-Every player is matched to a slot they can play, and the solver maximises the
-total score. CA is the primary score; PA is the tie-break. The first 11 slots
-are the first XI and the next 11 are the second XI, so one call fills both
-without starving the second team.
+For each metric (CA and PA), scipy assigns players to the 11 formation slots.
+The best XI is selected first, then the same solver picks the second XI from the
+remaining players.
 
 Run once:
 
@@ -44,57 +43,72 @@ SLOTS = (
     "AMR",
     "ST",
 )
+METRICS = ("ca", "pa")
 SQUADS = ("First XI", "Second XI")
 FORBIDDEN = 10**9
 OUTPUT = Path(__file__).resolve().parents[1] / "output" / "lineup.csv"
 
 
-def rating(player: Player) -> int:
-    """Rank by CA, using PA only as the tie-break."""
-    return player["ca"] * 1000 + player["pa"]
-
-
-def select_lineups(
-    players: list[Player], slots: tuple[str, ...] = SLOTS
-) -> list[list[tuple[str, Player]]]:
-    """Return first and second XI as [(slot, player), ...]."""
-    width = len(slots)
-    if len(players) < 2 * width:
+def select_lineup(
+    players: list[Player], metric: str, slots: tuple[str, ...] = SLOTS
+) -> list[tuple[str, Player]]:
+    """Return the best XI for one metric (``ca`` or ``pa``)."""
+    if len(players) < len(slots):
         raise RuntimeError(
-            f"Only {len(players)} players found; need at least {2 * width}"
+            f"Only {len(players)} players found; need at least {len(slots)}"
         )
 
     costs: list[list[int]] = []
     for player in players:
         positions = player["positions"]
-        row = [-rating(player) if slot in positions else FORBIDDEN for slot in slots]
-        costs.append(row + row)
+        costs.append(
+            [-player[metric] if slot in positions else FORBIDDEN for slot in slots]
+        )
 
     player_rows, slot_columns = linear_sum_assignment(costs)
-    by_slot: dict[str, list[Player]] = {}
+    chosen: dict[int, tuple[str, Player]] = {}
     for player_row, slot_column in zip(player_rows, slot_columns, strict=True):
         if costs[player_row][slot_column] >= FORBIDDEN:
-            slot = slots[slot_column % width]
-            raise RuntimeError(f"No eligible player left for {slot}")
-        slot = slots[slot_column % width]
-        by_slot.setdefault(slot, []).append(players[player_row])
+            raise RuntimeError(f"No eligible player left for {slots[slot_column]}")
+        chosen[slot_column] = (slots[slot_column], players[player_row])
 
-    lineups: list[list[tuple[str, Player] | None]] = [[None] * width for _ in range(2)]
-    for slot, group in by_slot.items():
-        group.sort(key=rating, reverse=True)
-        indices = [index for index, name in enumerate(slots) if name == slot]
-        for offset, index in enumerate(indices):
-            lineups[0][index] = (slot, group[offset])
-            lineups[1][index] = (slot, group[len(indices) + offset])
-
-    return [[entry for entry in lineup if entry is not None] for lineup in lineups]
+    missing = [slot for index, slot in enumerate(slots) if index not in chosen]
+    if missing:
+        raise RuntimeError(f"Could not fill: {', '.join(missing)}")
+    return [chosen[index] for index in range(len(slots))]
 
 
-def format_lineups(lineups: list[list[tuple[str, Player]]]) -> str:
-    """Format both lineups as plain text."""
+def select_two_lineups(
+    players: list[Player], metric: str, slots: tuple[str, ...] = SLOTS
+) -> list[list[tuple[str, Player]]]:
+    """Return first and second XI for one metric."""
+    first = select_lineup(players, metric, slots)
+    used = {id(player) for _, player in first}
+    remaining = [player for player in players if id(player) not in used]
+    try:
+        second = select_lineup(remaining, metric, slots)
+    except RuntimeError as error:
+        raise RuntimeError(f"Second XI: {error}") from error
+    return [first, second]
+
+
+def build_lineups(players: list[Player]) -> list[tuple[str, list[tuple[str, Player]]]]:
+    """Return CA first/second and PA first/second, in display order."""
+    lineups: list[tuple[str, list[tuple[str, Player]]]] = []
+    for metric in METRICS:
+        first, second = select_two_lineups(players, metric)
+        lineups.append((f"{metric.upper()} {SQUADS[0]}", first))
+        lineups.append((f"{metric.upper()} {SQUADS[1]}", second))
+    return lineups
+
+
+def format_lineups(
+    lineups: list[tuple[str, list[tuple[str, Player]]]],
+) -> str:
+    """Format every lineup as plain text."""
     lines: list[str] = []
-    for name, lineup in zip(SQUADS, lineups, strict=True):
-        lines.append(name)
+    for label, lineup in lineups:
+        lines.append(label)
         lines.append(f"{'Slot':<5}{'Name':<28}{'Age':>5}{'CA':>4}{'PA':>4}  Positions")
         for slot, player in lineup:
             age = player["age"]
@@ -108,18 +122,20 @@ def format_lineups(lineups: list[list[tuple[str, Player]]]) -> str:
     return "\n".join(lines).rstrip()
 
 
-def write_lineups(lineups: list[list[tuple[str, Player]]], path: Path = OUTPUT) -> None:
-    """Write both lineups to a CSV file."""
+def write_lineups(
+    lineups: list[tuple[str, list[tuple[str, Player]]]], path: Path = OUTPUT
+) -> None:
+    """Write every lineup to a CSV file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8-sig", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(["Squad", "Slot", "Name", "Age", "CA", "PA", "Positions"])
-        for name, lineup in zip(SQUADS, lineups, strict=True):
+        for label, lineup in lineups:
             for slot, player in lineup:
                 age = player["age"]
                 writer.writerow(
                     [
-                        name,
+                        label,
                         slot,
                         player["name"],
                         "" if age is None else f"{age:.1f}",
@@ -131,10 +147,10 @@ def write_lineups(lineups: list[list[tuple[str, Player]]], path: Path = OUTPUT) 
 
 
 def run_once(config: Config) -> Path:
-    """Read the squads, pick two lineups, print them, and write the CSV."""
+    """Read the squads, build the four lineups, print them, and write the CSV."""
     with Memory.open(config) as memory:
         players = all_players(memory)
-    lineups = select_lineups(players)
+    lineups = build_lineups(players)
     print(format_lineups(lineups))
     write_lineups(lineups)
     print(f"\nWrote {OUTPUT}")
@@ -144,7 +160,7 @@ def run_once(config: Config) -> Path:
 def main(argv: list[str] | None = None) -> int:
     """Command-line entry point."""
     parser = argparse.ArgumentParser(
-        description="Pick first and second 4-3-3 lineups by CA/PA."
+        description="Pick CA and PA first/second 4-3-3 lineups."
     )
     parser.add_argument("--once", action="store_true", help="run once and exit")
     parser.add_argument(

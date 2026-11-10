@@ -207,5 +207,6 @@ Reads one position rating byte per position from the player record. A rating of
         read u8      -> 12                 cannot play ST
 ```
 
-The lineup selector fills 22 slots at once: the first 11 are the first XI and
-the next 11 the second XI, ranked by CA and then PA.
+The lineup selector builds four lineups: CA first XI, CA second XI, PA first XI,
+and PA second XI. Each metric is solved separately: the best XI first, then the
+second XI from the remaining players.

@@ -152,34 +152,36 @@ pythonw src/fm24_ca_growth_gui.pyw
 
 ## Pick a lineup
 
-Build a first and second 4-3-3 from every controlled team with scipy's
-assignment solver:
+Build CA and PA first/second 4-3-3 lineups from every controlled team with
+scipy's assignment solver:
 
 ```powershell
 python src/fm24_lineup.py --once   # one run, then exit
 python src/fm24_lineup.py          # refresh every 30 seconds until Ctrl+C
 ```
 
+The four lineups are:
+
+```text
+CA First XI
+CA Second XI
+PA First XI
+PA Second XI
+```
+
 Example:
 
 ```text
-First XI
+CA First XI
 Slot Name                          Age  CA  PA  Positions
 GK   Marius Müller                30.0 126 132  GK
-DL   Brandon Soppy                21.3 127 149  DL/DR/MR/WBL/WBR
-...
-
-Second XI
-Slot Name                          Age  CA  PA  Positions
-GK   Ralf Fährmann                34.8 118 148  GK
+DL   Thomas Ouwejan               26.7 123 130  DL/DM/ML/WBL
 ...
 ```
 
-- CA is the primary score; PA breaks ties.
+- Each metric is selected separately: `ca` ranks by CA, `pa` ranks by PA.
+- The best XI is selected first, then the second XI from the remaining players.
 - Positions are read from the player record (`>= 15` can play the slot).
-- The matrix has 22 columns: 11 first-XI slots plus 11 second-XI slots, so one
-  assignment fills both teams without starving the second.
-- Same-position players are ordered so the higher rating goes to the first XI.
 - The lineups are printed and written to `output/lineup.csv` with columns
   `Squad`, `Slot`, `Name`, `Age`, `CA`, `PA`, `Positions`.
 
