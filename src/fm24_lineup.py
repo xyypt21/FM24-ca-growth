@@ -75,12 +75,13 @@ def select_lineup(
 
 
 def predict_apa(player: Player, settings: GrowthSettings) -> float:
-    """Project CA to max_age using the configured monthly growth."""
+    """Project CA to max_age, capped by PA."""
     age = player["age"]
     ca = player["ca"]
     if age is None or age >= settings.max_age:
         return float(ca)
-    return ca + settings.monthly_gain * 12 * (settings.max_age - age)
+    projected = ca + settings.monthly_gain * 12 * (settings.max_age - age)
+    return min(player["pa"], projected)
 
 
 def build_lineups(

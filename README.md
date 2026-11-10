@@ -172,7 +172,7 @@ APA projects current CA to `max_age` using the growth settings:
 
 ```text
 age >= max_age: APA = CA
-age <  max_age: APA = CA + monthly_gain * 12 * (max_age - age)
+age <  max_age: APA = min(PA, CA + monthly_gain * 12 * (max_age - age))
 ```
 
 Example:
@@ -182,7 +182,7 @@ CA First XI
 Slot Name                          Age  CA    APA  Positions
 GK   Marius Müller                30.0 126  126.0  GK
 DL   Thomas Ouwejan               26.7 123  123.0  DL/DM/ML/WBL
-DR   Brandon Soppy                21.3 127  167.8  DL/DR/MR/WBL/WBR
+DR   Brandon Soppy                21.3 127  149.0  DL/DR/MR/WBL/WBR
 ...
 ```
 

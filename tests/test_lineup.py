@@ -45,13 +45,13 @@ def two_candidates(ca_values: tuple[int, int], pa_values: tuple[int, int]):
 
 
 def apa_candidates():
-    """CA and APA disagree: young CA 100 has APA 268, older CA 200 has APA 200."""
+    """CA and APA disagree: young CA 150 has APA 200, older CA 199 has APA 199."""
     players = []
     address = 1
     for slot in SLOTS:
-        players.append(player(address, 100, 100, [slot], age=16.0))
+        players.append(player(address, 150, 200, [slot], age=16.0))
         address += 1
-        players.append(player(address, 200, 200, [slot], age=23.0))
+        players.append(player(address, 199, 199, [slot], age=23.0))
         address += 1
     return players
 
@@ -79,8 +79,8 @@ class BuildLineupsTest(unittest.TestCase):
     def test_apa_metric_uses_projected_ca(self) -> None:
         lineups = build_lineups(apa_candidates(), SETTINGS)
 
-        self.assertTrue(all(player["ca"] == 100 for _, player in lineups[2][1]))
-        self.assertTrue(all(player["ca"] == 200 for _, player in lineups[3][1]))
+        self.assertTrue(all(player["ca"] == 150 for _, player in lineups[2][1]))
+        self.assertTrue(all(player["ca"] == 199 for _, player in lineups[3][1]))
 
     def test_raises_when_positions_cannot_be_filled(self) -> None:
         players = [player(index, 100, 120, ["MC"]) for index in range(1, 23)]
@@ -93,9 +93,14 @@ class BuildLineupsTest(unittest.TestCase):
 
 
 class PredictApaTest(unittest.TestCase):
-    def test_projects_young_player_to_max_age(self) -> None:
+    def test_projection_is_capped_by_pa(self) -> None:
         self.assertEqual(
-            predict_apa(player(1, 100, 120, ["ST"], age=16.0), SETTINGS), 268
+            predict_apa(player(1, 100, 150, ["ST"], age=16.0), SETTINGS), 150
+        )
+
+    def test_projection_below_pa_is_not_capped(self) -> None:
+        self.assertEqual(
+            predict_apa(player(1, 100, 200, ["ST"], age=22.0), SETTINGS), 124
         )
 
     def test_max_age_and_older_use_current_ca(self) -> None:
