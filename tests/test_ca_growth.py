@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import datetime
 import io
+import json
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -212,7 +214,20 @@ class GrowthCapTest(unittest.TestCase):
 
 class SettingsTest(unittest.TestCase):
     def test_loads_growth_settings(self) -> None:
-        settings = load_growth_settings()
+        data = {
+            "monthly_gain": GAIN,
+            "max_age": MAX_AGE,
+            "cap": [
+                {"below_age": 18, "pa_ratio": 0.7},
+                {"below_age": 20, "pa_ratio": 0.8},
+                {"below_age": 22, "pa_ratio": 0.9},
+            ],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            settings = load_growth_settings(path)
+
         self.assertEqual(settings.monthly_gain, GAIN)
         self.assertEqual(settings.max_age, MAX_AGE)
         self.assertEqual(settings.caps, CAPS)
@@ -231,7 +246,7 @@ class GrowthPlanTest(unittest.TestCase):
         )
         self.assertEqual(
             changes,
-            [Change("Grows", 1, 100, 100 + GAIN, 150, 20.0)],
+            [Change("Grows", 1, 100, 100 + GAIN, 150, 135, 20.0)],
         )
 
     def test_skips_players_above_max_age(self) -> None:
@@ -246,7 +261,7 @@ class GrowthPlanTest(unittest.TestCase):
         )
         self.assertEqual(
             changes,
-            [Change("Age 21.9", 1, 100, 100 + GAIN, 150, 21.9)],
+            [Change("Age 21.9", 1, 100, 100 + GAIN, 150, 135, 21.9)],
         )
 
     def test_deduplicates_the_same_record(self) -> None:
@@ -263,8 +278,8 @@ class GrowthPlanTest(unittest.TestCase):
 class PrintPlanTest(unittest.TestCase):
     def test_sorts_by_age_youngest_first(self) -> None:
         changes = [
-            Change("Older", 1, 100, 102, 150, 25.0),
-            Change("Younger", 2, 100, 102, 150, 18.0),
+            Change("Older", 1, 100, 102, 150, 150, 25.0),
+            Change("Younger", 2, 100, 102, 150, 135, 18.0),
         ]
         output = io.StringIO()
         with redirect_stdout(output):
@@ -273,6 +288,7 @@ class PrintPlanTest(unittest.TestCase):
         lines = output.getvalue().splitlines()
         self.assertIn("Younger", lines[1])
         self.assertIn("Older", lines[2])
+        self.assertIn("cap 135", lines[1])
 
 
 class ShowPlanTest(unittest.TestCase):

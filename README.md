@@ -116,8 +116,8 @@ team. All growth settings are read together from `config.json`. Rules:
   - 22 and older: no age cap beyond PA (but normally excluded by `max_age`)
 - Rosters, CA, PA, and record addresses are re-read on every settlement.
 - On startup and after a save reload it prints a preview of the players whose
-  CA will grow at the next settlement, sorted by age (youngest first); the
-  preview does not write.
+  CA will grow at the next settlement, sorted by age (youngest first); each
+  line shows age, current/new CA, PA, and cap. The preview does not write.
 - Growth only happens when the in-game month actually changes; starting on the
   1st does not trigger an immediate settlement.
 - Stop with Ctrl+C.

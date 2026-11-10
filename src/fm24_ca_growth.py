@@ -54,6 +54,7 @@ class Change:
     ca: int
     new_ca: int
     pa: int
+    cap: int
     age: float | None = None
 
 
@@ -118,6 +119,7 @@ def growth_plan(players: Iterable[Player], settings: GrowthSettings) -> list[Cha
                 ca=ca,
                 new_ca=new_ca,
                 pa=pa,
+                cap=growth_cap(age, pa, settings.caps),
                 age=age,
             )
         )
@@ -152,7 +154,7 @@ def print_plan(
         age = "-" if change.age is None else f"{change.age:.1f}"
         print(
             f"  {change.name:<26} age {age:>4}  CA {change.ca:>3} -> "
-            f"{change.new_ca:>3}  PA {change.pa:>3}"
+            f"{change.new_ca:>3}  PA {change.pa:>3}  cap {change.cap:>3}"
         )
     print(f"  {len(changes)} players.")
 
@@ -239,7 +241,7 @@ def watch(memory: Memory, settings: GrowthSettings) -> int:
         for change in written:
             print(
                 f"{now}  {change.name:<26} CA {change.ca:>3} -> "
-                f"{change.new_ca:>3}  PA {change.pa:>3}"
+                f"{change.new_ca:>3}  PA {change.pa:>3}  cap {change.cap:>3}"
             )
         print(f"{now}: wrote {len(written)} players.")
 
