@@ -16,10 +16,12 @@ Config = dict[str, Any]
 
 @dataclass(frozen=True, slots=True)
 class CapRule:
-    """One age band cap: below_age -> CA may not exceed pa_ratio * PA."""
+    """Linear age cap: ratio goes from start_ratio to end_ratio with age."""
 
-    below_age: float
-    pa_ratio: float
+    start_age: float
+    start_ratio: float
+    end_age: float
+    end_ratio: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,7 +30,7 @@ class GrowthSettings:
 
     monthly_gain: int
     max_age: int
-    caps: tuple[CapRule, ...]
+    cap: CapRule
 
 
 # Sections used by the current step. Add names here as features grow.
@@ -100,28 +102,28 @@ def load_growth_settings(path: Path = SETTINGS_PATH) -> GrowthSettings:
     if not isinstance(max_age, int) or isinstance(max_age, bool) or max_age < 0:
         raise RuntimeError("config.json max_age must be a non-negative integer")
 
-    raw_caps = settings.get("cap", [])
-    if not isinstance(raw_caps, list):
-        raise RuntimeError("config.json cap must be an array")
-    caps: list[CapRule] = []
-    for item in raw_caps:
-        if not isinstance(item, dict):
-            raise RuntimeError("config.json cap entries must be objects")
-        below_age = item.get("below_age")
-        pa_ratio = item.get("pa_ratio")
-        if (
-            not isinstance(below_age, (int, float))
-            or isinstance(below_age, bool)
-            or below_age <= 0
-        ):
-            raise RuntimeError("config.json cap below_age must be a positive number")
-        if (
-            not isinstance(pa_ratio, (int, float))
-            or isinstance(pa_ratio, bool)
-            or not 0 < pa_ratio <= 1
-        ):
-            raise RuntimeError("config.json cap pa_ratio must be in (0, 1]")
-        caps.append(CapRule(float(below_age), float(pa_ratio)))
+    raw_cap = settings.get("cap", {})
+    if not isinstance(raw_cap, dict):
+        raise RuntimeError("config.json cap must be an object")
+    start_age = raw_cap.get("start_age", 18)
+    start_ratio = raw_cap.get("start_ratio", 0.7)
+    end_age = raw_cap.get("end_age", 22)
+    end_ratio = raw_cap.get("end_ratio", 0.9)
+    for name, value in (
+        ("start_age", start_age),
+        ("end_age", end_age),
+        ("start_ratio", start_ratio),
+        ("end_ratio", end_ratio),
+    ):
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise RuntimeError(f"config.json cap {name} must be a number")
+    if start_age < 0 or end_age <= start_age:
+        raise RuntimeError("config.json cap must have 0 <= start_age < end_age")
+    for name, ratio in (("start_ratio", start_ratio), ("end_ratio", end_ratio)):
+        if not 0 < ratio <= 1:
+            raise RuntimeError(f"config.json cap {name} must be in (0, 1]")
 
-    caps.sort(key=lambda rule: rule.below_age)
-    return GrowthSettings(gain, max_age, tuple(caps))
+    cap = CapRule(
+        float(start_age), float(start_ratio), float(end_age), float(end_ratio)
+    )
+    return GrowthSettings(gain, max_age, cap)

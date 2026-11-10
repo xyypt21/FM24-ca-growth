@@ -63,23 +63,25 @@ def month_key(date: datetime.date) -> int:
     return date.year * 12 + date.month
 
 
-def growth_cap(age: float, pa: int, caps: tuple[CapRule, ...]) -> int:
-    """Return the CA ceiling for this age, capped by PA.
-
-    The first rule whose below_age is greater than age wins; with no matching
-    rule the ceiling is PA itself.
-    """
-    for rule in caps:
-        if age < rule.below_age:
-            return min(pa, round(pa * rule.pa_ratio))
-    return pa
+def growth_cap(age: float, pa: int, cap: CapRule) -> int:
+    """Return the CA ceiling for this age: linear from start to end ratio."""
+    if age <= cap.start_age:
+        ratio = cap.start_ratio
+    elif age >= cap.end_age:
+        ratio = cap.end_ratio
+    else:
+        span = cap.end_age - cap.start_age
+        ratio = cap.start_ratio + (
+            (cap.end_ratio - cap.start_ratio) * (age - cap.start_age) / span
+        )
+    return min(pa, round(pa * ratio))
 
 
 def growth_target(ca: int, pa: int, age: float, settings: GrowthSettings) -> int | None:
     """Return CA + monthly_gain when it stays within the age cap; else None."""
     if not (1 <= ca <= 200 and 1 <= pa <= 200) or ca > pa:
         return None
-    cap = growth_cap(age, pa, settings.caps)
+    cap = growth_cap(age, pa, settings.cap)
     new_ca = ca + settings.monthly_gain
     return new_ca if new_ca <= cap else None
 
@@ -119,7 +121,7 @@ def growth_plan(players: Iterable[Player], settings: GrowthSettings) -> list[Cha
                 ca=ca,
                 new_ca=new_ca,
                 pa=pa,
-                cap=growth_cap(age, pa, settings.caps),
+                cap=growth_cap(age, pa, settings.cap),
                 age=age,
             )
         )

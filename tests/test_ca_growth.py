@@ -27,8 +27,8 @@ from fm24_config import CapRule, GrowthSettings, load_growth_settings  # noqa: E
 
 GAIN = 2
 MAX_AGE = 22
-CAPS = (CapRule(18, 0.7), CapRule(20, 0.8), CapRule(22, 0.9))
-SETTINGS = GrowthSettings(GAIN, MAX_AGE, CAPS)
+CAP = CapRule(18, 0.7, 22, 0.9)
+SETTINGS = GrowthSettings(GAIN, MAX_AGE, CAP)
 
 BASE = 0x140000000
 CONTAINER = 0x20000000
@@ -182,8 +182,8 @@ class GrowthTargetTest(unittest.TestCase):
         self.assertEqual(growth_target(100, 150, 21.9, SETTINGS), 100 + GAIN)
 
     def test_stops_at_age_cap(self) -> None:
-        self.assertEqual(growth_target(133, 150, 21.9, SETTINGS), 135)
-        self.assertIsNone(growth_target(134, 150, 21.9, SETTINGS))
+        self.assertEqual(growth_target(132, 150, 21.9, SETTINGS), 134)
+        self.assertIsNone(growth_target(133, 150, 21.9, SETTINGS))
         self.assertIsNone(growth_target(100, 100, 20.0, SETTINGS))
 
     def test_invalid_values_are_skipped(self) -> None:
@@ -200,21 +200,21 @@ class GrowthTargetTest(unittest.TestCase):
 
 
 class GrowthCapTest(unittest.TestCase):
-    def test_age_band_caps(self) -> None:
-        self.assertEqual(growth_cap(17.9, 200, CAPS), 140)
-        self.assertEqual(growth_cap(18.0, 200, CAPS), 160)
-        self.assertEqual(growth_cap(19.9, 200, CAPS), 160)
-        self.assertEqual(growth_cap(20.0, 200, CAPS), 180)
-        self.assertEqual(growth_cap(21.9, 200, CAPS), 180)
-        self.assertEqual(growth_cap(22.0, 200, CAPS), 200)
+    def test_linear_caps(self) -> None:
+        self.assertEqual(growth_cap(17.9, 200, CAP), 140)
+        self.assertEqual(growth_cap(18.0, 200, CAP), 140)
+        self.assertEqual(growth_cap(19.0, 200, CAP), 150)
+        self.assertEqual(growth_cap(20.0, 200, CAP), 160)
+        self.assertEqual(growth_cap(21.0, 200, CAP), 170)
+        self.assertEqual(growth_cap(22.0, 200, CAP), 180)
+        self.assertEqual(growth_cap(23.0, 200, CAP), 180)
 
     def test_ratio_uses_round(self) -> None:
-        self.assertEqual(growth_cap(17.1, 180, CAPS), 126)
-        self.assertEqual(growth_cap(17.1, 115, CAPS), 80)
-        self.assertEqual(growth_cap(20.0, 115, CAPS), 104)
+        self.assertEqual(growth_cap(17.1, 180, CAP), 126)
+        self.assertEqual(growth_cap(17.1, 115, CAP), 80)
 
     def test_cap_is_limited_by_pa(self) -> None:
-        self.assertEqual(growth_cap(17.0, 100, CAPS), 70)
+        self.assertEqual(growth_cap(17.0, 100, CAP), 70)
 
 
 class SettingsTest(unittest.TestCase):
@@ -222,11 +222,12 @@ class SettingsTest(unittest.TestCase):
         data = {
             "monthly_gain": GAIN,
             "max_age": MAX_AGE,
-            "cap": [
-                {"below_age": 18, "pa_ratio": 0.7},
-                {"below_age": 20, "pa_ratio": 0.8},
-                {"below_age": 22, "pa_ratio": 0.9},
-            ],
+            "cap": {
+                "start_age": 18,
+                "start_ratio": 0.7,
+                "end_age": 22,
+                "end_ratio": 0.9,
+            },
         }
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "config.json"
@@ -235,7 +236,7 @@ class SettingsTest(unittest.TestCase):
 
         self.assertEqual(settings.monthly_gain, GAIN)
         self.assertEqual(settings.max_age, MAX_AGE)
-        self.assertEqual(settings.caps, CAPS)
+        self.assertEqual(settings.cap, CAP)
 
 
 class GrowthPlanTest(unittest.TestCase):
@@ -251,7 +252,7 @@ class GrowthPlanTest(unittest.TestCase):
         )
         self.assertEqual(
             changes,
-            [Change("Grows", 1, 100, 100 + GAIN, 150, 135, 20.0)],
+            [Change("Grows", 1, 100, 100 + GAIN, 150, 120, 20.0)],
         )
 
     def test_skips_players_above_max_age(self) -> None:
@@ -266,7 +267,7 @@ class GrowthPlanTest(unittest.TestCase):
         )
         self.assertEqual(
             changes,
-            [Change("Age 21.9", 1, 100, 100 + GAIN, 150, 135, 21.9)],
+            [Change("Age 21.9", 1, 100, 100 + GAIN, 150, 134, 21.9)],
         )
 
     def test_deduplicates_the_same_record(self) -> None:

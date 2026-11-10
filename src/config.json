@@ -1,18 +1,10 @@
 {
   "monthly_gain": 2,
-  "max_age": 22,
-  "cap": [
-    {
-      "below_age": 18,
-      "pa_ratio": 0.7
-    },
-    {
-      "below_age": 20,
-      "pa_ratio": 0.8
-    },
-    {
-      "below_age": 22,
-      "pa_ratio": 0.9
-    }
-  ]
+  "max_age": 23,
+  "cap": {
+    "start_age": 18,
+    "start_ratio": 0.7,
+    "end_age": 22,
+    "end_ratio": 0.9
+  }
 }
