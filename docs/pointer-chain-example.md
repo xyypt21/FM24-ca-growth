@@ -88,8 +88,8 @@ address `0xF7914FF0`.
 ## Try it yourself
 
 ```powershell
-python src/manager_uid.py    # 2002076260
-python src/team_uid.py       # 920
+python src/fm24_manager.py   # 2002076260
+python src/fm24_team.py      # 920
 ```
 
 The UIDs should match the values printed by the walkthrough if you are in the

@@ -1,4 +1,4 @@
-# Run this tool directly from the repository (python src/manager_uid.py); do not
+# Run this tool directly from the repository (python src/fm24_manager.py); do not
 # install it. offsets.toml must sit next to the scripts, so there is no
 # [build-system] or [project.scripts] section.
 

@@ -18,7 +18,7 @@ python -m pip install pymem
 ## Read the manager UID
 
 ```powershell
-python src/manager_uid.py
+python src/fm24_manager.py
 ```
 
 The script prints one UID line:
@@ -32,7 +32,7 @@ If the game runs as administrator, run this tool as administrator too.
 ## Read the managed team UID
 
 ```powershell
-python src/team_uid.py
+python src/fm24_team.py
 ```
 
 Example output:
@@ -67,8 +67,8 @@ concrete walkthrough with real addresses and values.
 
 | File | Responsibility |
 |---|---|
-| `src/manager_uid.py` | Manager lookup, manager UID chain, and command-line entry point |
-| `src/team_uid.py` | Team UID chain and command-line entry point (uses the manager lookup) |
+| `src/fm24_manager.py` | Manager lookup, manager UID chain, and command-line entry point |
+| `src/fm24_team.py` | Team UID chain and command-line entry point (uses the manager lookup) |
 | `src/fm24_memory.py` | Process access and low-level memory reads |
 | `src/fm24_config.py` | Load and validate `offsets.toml` |
 | `src/offsets.toml` | FM24 memory offsets |

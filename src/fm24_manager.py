@@ -6,7 +6,7 @@
 
 Usage:
 
-    python src/manager_uid.py     # prints one UID line; no arguments
+    python src/fm24_manager.py    # prints one UID line; no arguments
 
 The game must be running with a save loaded.
 """

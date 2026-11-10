@@ -8,8 +8,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from manager_uid import manager_address, manager_uid  # noqa: E402
-from team_uid import team_uid  # noqa: E402
+from fm24_manager import manager_address, manager_uid  # noqa: E402
+from fm24_team import team_uid  # noqa: E402
 
 BASE = 0x140000000
 CONTAINER = 0x20000000

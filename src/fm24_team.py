@@ -8,7 +8,7 @@
 
 Usage:
 
-    python src/team_uid.py        # prints one UID line; no arguments
+    python src/fm24_team.py       # prints one UID line; no arguments
 
 The game must be running with a save loaded.
 """
@@ -16,8 +16,8 @@ The game must be running with a save loaded.
 from __future__ import annotations
 
 from fm24_config import Config, load_config
+from fm24_manager import manager_address
 from fm24_memory import Memory
-from manager_uid import manager_address
 
 
 def user_team(memory: Memory) -> int:
