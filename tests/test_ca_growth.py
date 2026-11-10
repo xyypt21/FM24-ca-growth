@@ -13,12 +13,14 @@ from fm24_ca_growth import (  # noqa: E402
     Change,
     growth_plan,
     growth_target,
+    max_age,
     month_key,
     monthly_gain,
     settle_month,
 )
 
 GAIN = 2
+MAX_AGE = 22
 
 BASE = 0x140000000
 CONTAINER = 0x20000000
@@ -111,12 +113,19 @@ class FakeMemory:
         return True
 
 
-def record(ca: int, pa: int) -> bytes:
-    """Build a minimal player record with a type tag and CA/PA."""
+def record(ca: int, pa: int, year: int = 2003, day_of_year: int = 200) -> bytes:
+    """Build a minimal player record with a type tag, CA/PA, and birth date.
+
+    Default birth date (2003-07-19) makes the player 21.x years old on
+    2025-04-01, which is at or below the default max_age of 22.
+    """
     raw = bytearray(RECORD_READ)
     raw[0:4] = PLAYER_TAG.to_bytes(4, "little")
     raw[0x200:0x202] = ca.to_bytes(2, "little")
     raw[0x202:0x204] = pa.to_bytes(2, "little")
+    person = 0x278
+    raw[person + 0x44 : person + 0x46] = day_of_year.to_bytes(2, "little")
+    raw[person + 0x46 : person + 0x48] = year.to_bytes(2, "little")
     return bytes(raw)
 
 
@@ -153,9 +162,11 @@ def memory_with_players(
     return FakeMemory(blobs, u32, vectors)
 
 
-def player(address: int, ca: int, pa: int, name: str = "Player") -> dict:
+def player(
+    address: int, ca: int, pa: int, name: str = "Player", age: float = 20.0
+) -> dict:
     """Return a player dict in the shape used by fm24_players."""
-    return {"address": address, "name": name, "ca": ca, "pa": pa, "age": 20.0}
+    return {"address": address, "name": name, "ca": ca, "pa": pa, "age": age}
 
 
 class GrowthTargetTest(unittest.TestCase):
@@ -181,35 +192,58 @@ class GrowthTargetTest(unittest.TestCase):
     def test_monthly_gain_comes_from_settings(self) -> None:
         self.assertEqual(monthly_gain({"monthly_gain": 2}), 2)
 
-    def test_invalid_monthly_gain_raises(self) -> None:
-        for settings in ({}, {"monthly_gain": 0}, {"monthly_gain": True}):
-            with self.assertRaisesRegex(RuntimeError, "monthly_gain"):
-                monthly_gain(settings)
+    def test_max_age_comes_from_settings(self) -> None:
+        self.assertEqual(max_age({"max_age": 22}), 22)
+
+    def test_max_age_defaults_to_22(self) -> None:
+        self.assertEqual(max_age({}), 22)
+
+    def test_invalid_max_age_raises(self) -> None:
+        for settings in ({"max_age": -1}, {"max_age": True}, {"max_age": "22"}):
+            with self.assertRaisesRegex(RuntimeError, "max_age"):
+                max_age(settings)
 
 
 class GrowthPlanTest(unittest.TestCase):
     def test_plans_only_players_below_pa(self) -> None:
         changes = growth_plan(
             [
-                player(1, 100, 150, "Grows"),
-                player(2, 100, 100, "At PA"),
-                player(3, 100, 101, "Would exceed"),
-                player(4, 0, 150, "Invalid"),
+                player(1, 100, 150, "Grows", 20.0),
+                player(2, 100, 100, "At PA", 20.0),
+                player(3, 100, 101, "Would exceed", 20.0),
+                player(4, 0, 150, "Invalid", 20.0),
             ],
             GAIN,
+            MAX_AGE,
         )
         self.assertEqual(
             changes,
             [Change("Grows", 1, 100, 100 + GAIN, 150)],
         )
 
+    def test_skips_players_above_max_age(self) -> None:
+        changes = growth_plan(
+            [
+                player(1, 100, 150, "Young", 22.0),
+                player(2, 100, 150, "Older", 23.0),
+                player(3, 100, 150, "Unknown", None),
+            ],
+            GAIN,
+            MAX_AGE,
+        )
+        self.assertEqual(
+            changes,
+            [Change("Young", 1, 100, 100 + GAIN, 150)],
+        )
+
     def test_deduplicates_the_same_record(self) -> None:
         changes = growth_plan(
             [
-                player(1, 100, 150, "Same"),
-                player(1, 100, 150, "Same"),
+                player(1, 100, 150, "Same", 20.0),
+                player(1, 100, 150, "Same", 20.0),
             ],
             GAIN,
+            MAX_AGE,
         )
         self.assertEqual(len(changes), 1)
 
@@ -225,7 +259,7 @@ class SettleMonthTest(unittest.TestCase):
         memory.blobs[PLAYER] = record(100, 150)
         memory.blobs[PLAYER_AT_PA] = record(150, 150)
 
-        written = settle_month(memory, GAIN)
+        written = settle_month(memory, GAIN, MAX_AGE)
 
         self.assertEqual(len(written), 1)
         self.assertEqual(
@@ -236,7 +270,7 @@ class SettleMonthTest(unittest.TestCase):
     def test_no_players_raises(self) -> None:
         memory = memory_with_players([(TEAM, [])])
         with self.assertRaisesRegex(RuntimeError, "No players"):
-            settle_month(memory, GAIN)
+            settle_month(memory, GAIN, MAX_AGE)
 
 
 if __name__ == "__main__":

@@ -107,6 +107,7 @@ team. Rules:
 
 - CA never grows above PA; players already at their potential are skipped.
 - Invalid CA/PA values (outside `1..200`, or CA above PA) are skipped.
+- Players older than `max_age` from `src/config.json` (default **22**) are skipped.
 - Rosters, CA, PA, and record addresses are re-read on every settlement.
 - Starting on the 1st settles immediately. If a holiday skips the 1st, the first
   new month seen afterwards is paid once.
@@ -165,7 +166,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_memory.py` | Process access, low-level reads/writes, and pointer vectors |
-| `src/config.json` | Non-offset settings, such as `monthly_gain` |
+| `src/config.json` | Non-offset settings, such as `monthly_gain` and `max_age` |
 | `src/fm24_config.py` | Load and validate `offsets.toml` and `config.json` |
 | `src/offsets.toml` | FM24 memory offsets |
 | `tests/` | Unit tests (no game process required) |

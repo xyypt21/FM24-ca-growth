@@ -174,7 +174,7 @@ exe base 0x140000000
 
 The write is verified by reading CA back. Players whose `CA + monthly_gain`
 (from `src/config.json`) would exceed PA are skipped, and CA is never clamped to
-PA.
+PA. Players older than `max_age` (default 22) are also skipped.
 
 Save reload detection
 
