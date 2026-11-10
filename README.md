@@ -68,7 +68,7 @@ concrete walkthrough with real addresses and values.
 | File | Responsibility |
 |---|---|
 | `src/manager_uid.py` | Manager lookup, manager UID chain, and command-line entry point |
-| `src/team_uid.py` | Team lookup, team UID chain, and command-line entry point |
+| `src/team_uid.py` | Team UID chain and command-line entry point (uses the manager lookup) |
 | `src/fm24_memory.py` | Process access and low-level memory reads |
 | `src/fm24_config.py` | Load and validate `offsets.toml` |
 | `src/offsets.toml` | FM24 memory offsets |

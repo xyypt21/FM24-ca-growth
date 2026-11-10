@@ -17,34 +17,12 @@ from __future__ import annotations
 
 from fm24_config import Config, load_config
 from fm24_memory import Memory
-
-
-def _manager_address(memory: Memory) -> int:
-    """Return the human manager record address.
-
-    This local lookup keeps team_uid independent of manager_uid.
-    """
-    manager_cfg = memory.config["manager"]
-
-    container = memory.read_ptr(memory.base + manager_cfg["container_rva"])
-    if not container:
-        raise RuntimeError(
-            "Failed to read the manager container: save not loaded or wrong offsets"
-        )
-
-    begin = memory.read_ptr(container + manager_cfg["vector_off"])
-    if not begin:
-        raise RuntimeError("Failed to read the human manager array")
-
-    manager = memory.read_ptr(begin)
-    if manager is None or not memory.is_valid_ptr(manager):
-        raise RuntimeError("The human manager pointer is invalid")
-    return manager
+from manager_uid import manager_address
 
 
 def user_team(memory: Memory) -> int:
     """Follow the contract chain and return the human manager's team address."""
-    manager = _manager_address(memory)
+    manager = manager_address(memory)
     person = manager + memory.config["manager"]["person_off"]
     contract = memory.read_ptr(person + memory.config["person"]["contract_off"])
     if not contract or not memory.is_valid_ptr(contract):

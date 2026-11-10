@@ -32,7 +32,22 @@ fm.exe base
 0xF7915440
   + uid_off 0x0C
   = 0xF791544C
-        read u32     -> 0x77554264         UID = 2002076260
+        read u32     -> 0x77554264         manager UID = 2002076260
+
+0xF7915440
+  + contract_off 0xC8
+  = 0xF7915508
+        read pointer -> 0x108950890        contract
+
+0x108950890
+  + team_off 0x10
+  = 0x1089508A0
+        read pointer -> 0xFC221600         managed team
+
+0xFC221600
+  + uid_off 0x0C
+  = 0xFC22160C
+        read u32     -> 0x00000398         team UID = 920
 ```
 
 ## Read steps
@@ -43,14 +58,19 @@ fm.exe base
 | `container + vector_off` | `0x2D1EC5C8` | `0x1174C95A0` | Array begin |
 | `container + vector_off + 8` | `0x2D1EC5D0` | `0x1174C95A8` | Array end |
 | `begin` | `0x1174C95A0` | `0xF7914FF0` | Human manager record |
-| `person + uid_off` | `0xF791544C` | `0x77554264` | UID (`2002076260`) |
+| `person + uid_off` | `0xF791544C` | `0x77554264` | Manager UID (`2002076260`) |
+| `person + contract_off` | `0xF7915508` | `0x108950890` | Contract |
+| `contract + team_off` | `0x1089508A0` | `0xFC221600` | Managed team |
+| `team + uid_off` | `0xFC22160C` | `0x00000398` | Team UID (`920`) |
 
-Note the difference between the last two rows:
+Note the difference between pointer reads and arithmetic offsets:
 
-- `manager + person_off` is arithmetic. It points at the start of the person
-  sub-object; it does not read a pointer.
-- `person + uid_off` is a real 4-byte read. The UID is stored inline, not behind
-  another pointer.
+- `manager + person_off` is arithmetic. It marks where the person sub-object
+  starts; it does not read a pointer.
+- `person + contract_off` and `contract + team_off` are pointer reads. The value
+  stored at that address is the next object.
+- `person + uid_off` and `team + uid_off` are real 4-byte reads. The UIDs are
+  stored inline, not behind another pointer.
 
 ## Why there is an array
 
@@ -68,8 +88,9 @@ address `0xF7914FF0`.
 ## Try it yourself
 
 ```powershell
-python src/manager_uid.py
+python src/manager_uid.py    # 2002076260
+python src/team_uid.py       # 920
 ```
 
-The UID should match the value printed by the walkthrough if you are in the
+The UIDs should match the values printed by the walkthrough if you are in the
 same save, but the addresses will almost certainly be different.
