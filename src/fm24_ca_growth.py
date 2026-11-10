@@ -92,8 +92,8 @@ def growth_plan(
 ) -> list[Change]:
     """Return the planned CA changes, deduplicated by player record address.
 
-    Players aged ``max_age_value + 1`` or older are skipped, so a player who is
-    22.x years old is still eligible when max_age is 22.
+    Only players younger than ``max_age_value`` are eligible. With max_age 22,
+    a 21.9-year-old grows while a 22.0-year-old does not.
     """
     changes: list[Change] = []
     seen: set[int] = set()
@@ -104,7 +104,7 @@ def growth_plan(
         seen.add(address)
 
         age = player["age"]
-        if age is None or age >= max_age_value + 1:
+        if age is None or age >= max_age_value:
             continue
 
         ca = player["ca"]

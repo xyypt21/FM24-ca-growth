@@ -174,8 +174,8 @@ exe base 0x140000000
 
 The write is verified by reading CA back. Players whose `CA + monthly_gain`
 (from `src/config.json`) would exceed PA are skipped, and CA is never clamped to
-PA. Age is filtered by whole years: `max_age` 22 includes 22.9-year-olds and
-skips 23.0-year-olds.
+PA. Age is strict: with `max_age` 22, 21.9-year-olds grow and 22.0-year-olds are
+skipped.
 
 Save reload detection
 

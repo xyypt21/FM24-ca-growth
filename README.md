@@ -107,8 +107,8 @@ team. Rules:
 
 - CA never grows above PA; players already at their potential are skipped.
 - Invalid CA/PA values (outside `1..200`, or CA above PA) are skipped.
-- Only players aged `max_age` or younger in whole years grow (default **22**);
-  a 22.9-year-old still counts as 22, a 23.0-year-old is skipped.
+- Only players younger than `max_age` grow (default **22**); a 21.9-year-old
+  grows, a 22.0-year-old is skipped.
 - Rosters, CA, PA, and record addresses are re-read on every settlement.
 - On startup and after a save reload it prints a preview of the players whose
   CA will grow at the next settlement, sorted by age (youngest first); the

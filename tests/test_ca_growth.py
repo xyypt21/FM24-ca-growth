@@ -228,9 +228,9 @@ class GrowthPlanTest(unittest.TestCase):
     def test_skips_players_above_max_age(self) -> None:
         changes = growth_plan(
             [
-                player(1, 100, 150, "Age 22.0", 22.0),
-                player(2, 100, 150, "Age 22.9", 22.9),
-                player(3, 100, 150, "Age 23.0", 23.0),
+                player(1, 100, 150, "Age 21.9", 21.9),
+                player(2, 100, 150, "Age 22.0", 22.0),
+                player(3, 100, 150, "Age 22.9", 22.9),
                 player(4, 100, 150, "Unknown", None),
             ],
             GAIN,
@@ -238,10 +238,7 @@ class GrowthPlanTest(unittest.TestCase):
         )
         self.assertEqual(
             changes,
-            [
-                Change("Age 22.0", 1, 100, 100 + GAIN, 150, 22.0),
-                Change("Age 22.9", 2, 100, 100 + GAIN, 150, 22.9),
-            ],
+            [Change("Age 21.9", 1, 100, 100 + GAIN, 150, 21.9)],
         )
 
     def test_deduplicates_the_same_record(self) -> None:
