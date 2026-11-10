@@ -6,10 +6,10 @@ CA never grows above PA, so players already at their potential are skipped.
 
 This script watches the in-game date; it does not use the system clock. It
 re-reads the rosters on every settlement, so CA, PA, age, and record addresses
-are always current. It also detects save reloads: when the human manager address
-changes, the state resets to the current month so no month is settled twice.
-Growth only happens when the month actually changes; starting on the 1st does
-not trigger an immediate settlement.
+are always current. It detects save reloads by watching the in-game date move
+backward; all memory addresses change on reload, but every settlement re-reads
+the rosters so no address is cached. Growth only happens when the month
+actually changes; starting on the 1st does not trigger an immediate settlement.
 
 Usage:
 
@@ -29,7 +29,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from fm24_config import Config, load_config, load_settings
-from fm24_manager import manager_address
 from fm24_memory import Memory
 from fm24_players import game_date, team_players
 
@@ -165,17 +164,18 @@ def preview(memory: Memory, gain: int, max_age_value: int) -> int:
 def watch(memory: Memory, gain: int, max_age_value: int) -> int:
     """Settle once per new in-game month until interrupted.
 
-    Save reload detection: the human manager object address changes every time
-    the game (re)loads a save. When it changes, the state resets to the current
-    month so no month is settled twice. Growth only happens when the month
-    actually changes; starting on the 1st does not trigger an immediate
-    settlement.
+    Growth only happens when the in-game month actually changes. Starting on
+    the 1st does not trigger an immediate settlement.
+
+    Save reload detection: when the game reloads a save, all memory addresses
+    change and the in-game date can move backward. Settle_month re-reads every
+    roster address on each call, so no address is cached. A backward date
+    resets the state to the current month without settling.
     """
     today = game_date(memory)
     if today is None:
         raise RuntimeError("Cannot read the in-game date")
 
-    last_manager = manager_address(memory)
     last_month = month_key(today)
     print(f"Game date {today}; waiting for the next month.")
 
@@ -185,22 +185,11 @@ def watch(memory: Memory, gain: int, max_age_value: int) -> int:
         if now is None:
             continue
 
-        current_manager = manager_address(memory)
-        if current_manager != last_manager:
-            print(
-                f"Save reloaded at {now}; manager address changed "
-                f"0x{last_manager:X} -> 0x{current_manager:X}. "
-                f"Resetting state; waiting for next month."
-            )
-            last_manager = current_manager
-            last_month = month_key(now)
-            continue
-
         key = month_key(now)
         if key == last_month:
             continue
         if key < last_month:
-            print(f"In-game date moved back to {now}; resetting the month.")
+            print(f"Save reloaded at {now}; date moved back, resetting state.")
             last_month = key
             continue
 

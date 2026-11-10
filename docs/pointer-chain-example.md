@@ -178,7 +178,7 @@ PA. Players older than `max_age` (default 22) are also skipped.
 
 Save reload detection
 
-The human manager address changes when the game (re)loads a save. The watcher
-detects this change and resets the state to the current month so no month is
-settled twice. Growth only happens when the month actually changes after the
-reload.
+When the game reloads a save, all memory addresses change and the in-game date
+can move backward. The watcher detects the backward date and resets the state to
+the current month without settling. Every settlement re-reads all roster, team,
+and player addresses, so no address is cached across reloads.

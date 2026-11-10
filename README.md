@@ -115,11 +115,10 @@ team. Rules:
 
 Save reload detection
 
-The human manager object address changes every time the game (re)loads a save.
-The watcher compares the manager address on each loop iteration. When it
-changes, all previously read addresses are considered stale; the month cursor is
-kept so a reload does not re-settle a month already settled. No roster, team, or
-player address is cached across reloads.
+When the game reloads a save, all memory addresses change and the in-game date
+can move backward. The watcher detects the backward date and resets the state to
+the current month without settling. Every settlement re-reads all roster, team,
+and player addresses, so no address is cached across reloads.
 
 This command **writes to game memory**, unlike the reader commands. Run it at
 the same privilege level as the game.
