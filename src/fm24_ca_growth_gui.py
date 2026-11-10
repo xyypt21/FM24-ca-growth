@@ -13,6 +13,7 @@ WRITES to game memory.
 
 from __future__ import annotations
 
+import contextlib
 import queue
 import threading
 import tkinter as tk
@@ -101,10 +102,8 @@ class GrowthGui:
 
     def _schedule(self, callback) -> None:
         """Run a callback on the Tk thread, ignoring a closed window."""
-        try:
+        with contextlib.suppress(tk.TclError):
             self.root.after(0, callback)
-        except tk.TclError:
-            pass
 
     def _log(self, message: str) -> None:
         """Thread-safe log: queue the line for the Tk thread."""
