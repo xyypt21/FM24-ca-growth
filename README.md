@@ -165,15 +165,13 @@ To build locally:
 
 ```powershell
 python -m pip install pymem pyinstaller
-pyinstaller --noconfirm --clean --onefile --windowed --collect-submodules pymem --name FM24CAGrowth src/fm24_ca_growth_gui.pyw
-Copy-Item src/offsets.toml dist/
-Copy-Item src/config.json dist/
+./scripts/build-exe.ps1
 ```
 
-The GitHub workflow uses Python 3.12, where PyInstaller bundles Tcl/Tk data
-automatically. Newer local Python builds may ship Tcl 9 inside zip files and
-produce an exe that cannot find `_tcl_data`; use Python 3.12 for local builds,
-or add the extracted `tcl_library`/`tk_library` folders with `--add-data`.
+The script excludes unused standard-library modules (about 11 MB output instead
+of 15 MB) and handles Python builds that ship Tcl 9 inside zip files by adding
+the extracted Tcl/Tk data to the exe. The workflow uses the same script, so
+local and CI builds stay identical.
 
 ## Pointer chain
 
@@ -218,6 +216,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_ca_growth_gui.pyw` | Tkinter GUI for the CA growth watcher |
 | `.github/workflows/build-exe.yml` | Build the Windows exe on GitHub Actions |
+| `scripts/build-exe.ps1` | Local/CI PyInstaller build script |
 | `src/fm24_memory.py` | Process access, low-level reads/writes, and pointer vectors |
 | `src/config.json` | Growth settings: `monthly_gain`, `max_age`, and the linear `cap` |
 | `src/fm24_config.py` | Load and validate `offsets.toml` and `config.json` |

@@ -30,21 +30,8 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests
 
-      - name: Build GUI exe
-        run: |
-          pyinstaller --noconfirm --clean --onefile --windowed `
-            --collect-submodules pymem `
-            --name FM24CAGrowth `
-            src/fm24_ca_growth_gui.pyw
-          Copy-Item src/offsets.toml dist/offsets.toml
-          Copy-Item src/config.json dist/config.json
-
-      - name: Package
-        run: |
-          Compress-Archive `
-            -Path dist/FM24CAGrowth.exe,dist/offsets.toml,dist/config.json `
-            -DestinationPath dist/FM24CAGrowth-windows.zip `
-            -Force
+      - name: Build and package GUI exe
+        run: ./scripts/build-exe.ps1
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
