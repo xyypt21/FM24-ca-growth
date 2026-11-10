@@ -1,4 +1,4 @@
-"""Unit tests for the scipy CA/APA lineup selector."""
+"""Unit tests for the scipy CA/ACA/APA lineup selector."""
 
 from __future__ import annotations
 
@@ -10,10 +10,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fm24_config import CapRule, GrowthSettings  # noqa: E402
 from fm24_lineup import (  # noqa: E402
+    DEPTH,
     SLOTS,
     build_lineups,
     predict_aca,
     predict_apa,
+    select_lineup,
 )
 
 SETTINGS = GrowthSettings(2, 23, CapRule(18, 0.7, 22, 0.9))
@@ -40,72 +42,63 @@ def player(
     }
 
 
-def two_candidates(ca_values: tuple[int, int], pa_values: tuple[int, int]):
-    """Return two candidates for every slot occurrence."""
+def deep_squad() -> list[dict[str, object]]:
+    """Enough players for two XIs plus a third squad at every depth target."""
     players = []
     address = 1
     for slot in SLOTS:
-        for ca, pa in zip(ca_values, pa_values, strict=True):
-            players.append(player(address, ca, pa, [slot]))
+        for rank in range(DEPTH[slot]):
+            ca = 200 - rank
+            players.append(player(address, ca, ca + 10, [slot]))
             address += 1
     return players
 
 
-def apa_candidates():
-    """CA and APA disagree: young CA 150 has APA 200, older CA 199 has APA 199."""
-    players = []
-    address = 1
-    for slot in SLOTS:
-        players.append(player(address, 150, 200, [slot], age=16.0))
-        address += 1
-        players.append(player(address, 199, 199, [slot], age=23.0))
-        address += 1
-    return players
-
-
-def aca_candidates():
-    """ACA favours the younger player: 150 + 12 = 162, older CA is 160."""
-    players = []
-    address = 1
-    for slot in SLOTS:
-        players.append(player(address, 150, 200, [slot], age=21.5))
-        address += 1
-        players.append(player(address, 160, 200, [slot], age=23.0))
-        address += 1
-    return players
-
-
 class BuildLineupsTest(unittest.TestCase):
-    def test_builds_ca_aca_and_apa_squads(self) -> None:
-        lineups = build_lineups(two_candidates((200, 100), (200, 100)), SETTINGS)
+    def test_builds_three_squads_per_metric(self) -> None:
+        lineups = build_lineups(deep_squad(), SETTINGS)
 
-        self.assertEqual(len(lineups), 6)
-        self.assertEqual([len(lineup) for _, lineup in lineups], [11] * 6)
-        for start in (0, 2, 4):
-            addresses = [
-                player["address"]
-                for _, lineup in lineups[start : start + 2]
-                for _, player in lineup
-            ]
-            self.assertEqual(len(addresses), len(set(addresses)))
+        self.assertEqual(len(lineups), 9)
+        self.assertEqual([len(lineup) for _, lineup in lineups[:2]], [11, 11])
+        self.assertTrue(lineups[2][1])
 
     def test_ca_metric_puts_best_ca_in_first_xi(self) -> None:
-        lineups = build_lineups(two_candidates((200, 100), (200, 100)), SETTINGS)
+        lineups = build_lineups(deep_squad(), SETTINGS)
 
         self.assertTrue(all(player["ca"] == 200 for _, player in lineups[0][1]))
-        self.assertTrue(all(player["ca"] == 100 for _, player in lineups[1][1]))
+        self.assertTrue(all(player["ca"] == 199 for _, player in lineups[1][1]))
 
-    def test_apa_metric_uses_projected_ca(self) -> None:
-        lineups = build_lineups(apa_candidates(), SETTINGS)
+    def test_third_squad_reaches_depth(self) -> None:
+        lineups = build_lineups(deep_squad(), SETTINGS)
+        selected = lineups[0][1] + lineups[1][1] + lineups[2][1]
 
-        self.assertTrue(all(player["ca"] == 150 for _, player in lineups[4][1]))
-        self.assertTrue(all(player["ca"] == 199 for _, player in lineups[5][1]))
+        covered = {slot: 0 for slot in DEPTH}
+        for _, player in selected:
+            for position in player["positions"]:
+                if position in covered:
+                    covered[position] += 1
+        self.assertTrue(all(covered[slot] >= DEPTH[slot] for slot in DEPTH))
 
-    def test_aca_metric_uses_six_month_growth(self) -> None:
-        lineups = build_lineups(aca_candidates(), SETTINGS)
+    def test_select_lineup_uses_the_metric_field(self) -> None:
+        players = []
+        address = 1
+        for slot in SLOTS:
+            first = player(address, 200, 200, [slot])
+            first.update(aca=100, apa=300)
+            second = player(address + 1, 100, 150, [slot])
+            second.update(aca=200, apa=100)
+            players += [first, second]
+            address += 2
 
-        self.assertTrue(all(player["ca"] == 150 for _, player in lineups[2][1]))
-        self.assertTrue(all(player["ca"] == 160 for _, player in lineups[3][1]))
+        self.assertTrue(
+            all(player["ca"] == 200 for _, player in select_lineup(players, "ca"))
+        )
+        self.assertTrue(
+            all(player["aca"] == 200 for _, player in select_lineup(players, "aca"))
+        )
+        self.assertTrue(
+            all(player["apa"] == 300 for _, player in select_lineup(players, "apa"))
+        )
 
     def test_raises_when_positions_cannot_be_filled(self) -> None:
         players = [player(index, 100, 120, ["MC"]) for index in range(1, 23)]
@@ -113,9 +106,9 @@ class BuildLineupsTest(unittest.TestCase):
             build_lineups(players, SETTINGS)
 
     def test_skips_loaned_players(self) -> None:
-        players = two_candidates((200, 100), (200, 100))
+        players = deep_squad()
         players[0]["loan"] = "loaned in"
-        players.append(player(999, 50, 60, ["GK"]))
+        players.append(player(9999, 50, 60, ["GK"]))
 
         lineups = build_lineups(players, SETTINGS)
         addresses = {player["address"] for _, lineup in lineups for _, player in lineup}
@@ -123,7 +116,7 @@ class BuildLineupsTest(unittest.TestCase):
 
     def test_raises_when_there_are_too_few_players(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "at least"):
-            build_lineups(two_candidates((200, 100), (200, 100))[:21], SETTINGS)
+            build_lineups(deep_squad()[:10], SETTINGS)
 
 
 class PredictApaTest(unittest.TestCase):

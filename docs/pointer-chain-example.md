@@ -207,13 +207,15 @@ Reads one position rating byte per position from the player record. A rating of
         read u8      -> 12                 cannot play ST
 ```
 
-The lineup selector builds six lineups: CA/ACA/APA first XI and second XI. Each
-metric is solved separately: the best XI first, then the second XI from the
-remaining players. APA projects CA to `max_age` with
+The lineup selector builds nine lineups: CA/ACA/APA first XI, second XI, and
+third XI. The first two come from the scipy assignment, best XI first and then
+the second XI from the remaining players. The third squad fills depth targets
+(GK 2, DM 6, DC 6, other positions 4) from the remaining players in descending
+metric order; versatile players count for every position they can play. APA
+projects CA to `max_age` with
 `min(PA, round(CA + monthly_gain * 12 * (max_age - age)))`; at or above
-`max_age` it is CA. ACA is `max(CA, min(CA + 6 * monthly_gain, cap, APA))`, or
-CA at or above `max_age`, so ACA never drops below current CA. Players on loan
-are excluded.
+`max_age` it is CA. ACA is `max(CA, min(CA + 6 * monthly_gain, cap, APA))`, or CA
+at or above `max_age`. Players on loan are excluded.
 
 Loan detection compares two club UIDs with the controlled team UIDs:
 

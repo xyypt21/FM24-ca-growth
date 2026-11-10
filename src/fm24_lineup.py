@@ -18,13 +18,11 @@ Run:
 
     python src/fm24_lineup.py
 
-It refreshes every ``INTERVAL`` seconds; Ctrl+C stops it. The lineups are
-printed to the console. The game must be running with a save loaded.
+It runs once and prints the lineups to the console. The game must be running
+with a save loaded.
 """
 
 from __future__ import annotations
-
-import time
 
 from scipy.optimize import linear_sum_assignment
 
@@ -32,9 +30,6 @@ from fm24_ca_growth import growth_cap
 from fm24_config import GrowthSettings, load_config, load_growth_settings
 from fm24_memory import Memory
 from fm24_players import Player, all_players
-
-# Seconds between refreshes while the script is running.
-INTERVAL = 30
 
 # 4-3-3: one goalkeeper, four defenders, three midfielders, three forwards.
 SLOTS = (
@@ -51,6 +46,18 @@ SLOTS = (
     "ST",
 )
 METRICS = ("ca", "aca", "apa")
+# Third-squad depth: how many players must be able to play each position.
+DEPTH = {
+    "GK": 2,
+    "DL": 4,
+    "DC": 6,
+    "DR": 4,
+    "DM": 6,
+    "AML": 4,
+    "AMC": 4,
+    "AMR": 4,
+    "ST": 4,
+}
 FORBIDDEN = 10**9
 
 
@@ -101,10 +108,58 @@ def predict_aca(player: Player, settings: GrowthSettings) -> int:
     return max(ca, aca)
 
 
+def fill_third(
+    players: list[Player],
+    selected: list[tuple[str, Player]],
+    metric: str,
+) -> list[tuple[str, Player]]:
+    """Fill a third squad until every DEPTH target is met.
+
+    Remaining players are scanned from highest metric to lowest. A versatile
+    player counts towards every position they can play, but joins the squad
+    only once.
+    """
+    covered = {slot: 0 for slot in DEPTH}
+    for _, player in selected:
+        for position in player["positions"]:
+            if position in covered:
+                covered[position] += 1
+
+    taken = {id(player) for _, player in selected}
+    third: list[tuple[str, Player]] = []
+    for player in sorted(
+        (player for player in players if id(player) not in taken),
+        key=lambda item: item[metric],
+        reverse=True,
+    ):
+        if all(covered[slot] >= DEPTH[slot] for slot in DEPTH):
+            break
+        gaps = [
+            slot
+            for slot in DEPTH
+            if slot in player["positions"] and covered[slot] < DEPTH[slot]
+        ]
+        if not gaps:
+            continue
+        for position in player["positions"]:
+            if position in covered:
+                covered[position] += 1
+        third.append((gaps[0], player))
+
+    missing = [
+        f"{slot} {covered[slot]}/{DEPTH[slot]}"
+        for slot in DEPTH
+        if covered[slot] < DEPTH[slot]
+    ]
+    if missing:
+        raise RuntimeError("Third XI cannot reach depth: " + ", ".join(missing))
+    return third
+
+
 def build_lineups(
     players: list[Player], settings: GrowthSettings
 ) -> list[tuple[str, list[tuple[str, Player]]]]:
-    """Return CA, ACA, and APA first/second lineups, in display order."""
+    """Return CA, ACA, and APA first/second/third lineups, in display order."""
     players = [player for player in players if not player.get("loan")]
     enriched = [
         {
@@ -123,9 +178,14 @@ def build_lineups(
             second = select_lineup(remaining, metric)
         except RuntimeError as error:
             raise RuntimeError(f"{metric.upper()} Second XI: {error}") from error
+        try:
+            third = fill_third(enriched, first + second, metric)
+        except RuntimeError as error:
+            raise RuntimeError(f"{metric.upper()} Third XI: {error}") from error
 
         lineups.append((f"{metric.upper()} First XI", first))
         lineups.append((f"{metric.upper()} Second XI", second))
+        lineups.append((f"{metric.upper()} Third XI", third))
     return lineups
 
 
@@ -152,21 +212,17 @@ def format_lineups(
 
 
 def main() -> int:
-    """Refresh the lineups until interrupted."""
+    """Print the lineups once."""
     config = load_config()
     settings = load_growth_settings()
     try:
-        while True:
-            try:
-                with Memory.open(config) as memory:
-                    players = all_players(memory)
-                print(format_lineups(build_lineups(players, settings)))
-            except RuntimeError as error:
-                print(f"Error: {error}")
-            time.sleep(INTERVAL)
-    except KeyboardInterrupt:
-        print("Stopped.")
-        return 0
+        with Memory.open(config) as memory:
+            players = all_players(memory)
+        print(format_lineups(build_lineups(players, settings)))
+    except RuntimeError as error:
+        print(f"Error: {error}")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

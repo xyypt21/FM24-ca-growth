@@ -152,22 +152,19 @@ pythonw src/fm24_ca_growth_gui.pyw
 
 ## Pick a lineup
 
-Build CA, ACA, and APA first/second 4-3-3 lineups from every controlled team
-with scipy's assignment solver:
+Build CA, ACA, and APA first/second/third 4-3-3 lineups from every controlled
+team with scipy's assignment solver:
 
 ```powershell
-python src/fm24_lineup.py   # refresh every 30 seconds; Ctrl+C stops
+python src/fm24_lineup.py   # one run, then exit
 ```
 
-The six lineups are:
+The nine lineups are:
 
 ```text
-CA First XI
-CA Second XI
-ACA First XI
-ACA Second XI
-APA First XI
-APA Second XI
+CA First XI / Second XI / Third XI
+ACA First XI / Second XI / Third XI
+APA First XI / Second XI / Third XI
 ```
 
 APA projects current CA to `max_age`; ACA adds six months of growth:
@@ -193,6 +190,10 @@ AMC  Assan Ouédraogo              17.6 127  126  180  MC/AML/AMC
 - `ca` ranks by current ability, `aca` by six-month growth, `apa` by projected CA.
 - `monthly_gain`, `max_age`, and `cap` come from `src/config.json`.
 - The best XI is selected first, then the second XI from the remaining players.
+- The third XI is filled from the remaining players, highest metric first, until
+  these depth targets are met: GK 2, DM 6, DC 6, all other positions 4.
+- A versatile player counts towards every position they can play, but joins the
+  third squad only once.
 - Positions are read from the player record (`>= 15` can play the slot).
 - Players on loan (loaned in or loaned out) are excluded.
 - The four lineups are printed to the console; no files are written.
