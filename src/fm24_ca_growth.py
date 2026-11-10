@@ -64,11 +64,16 @@ def month_key(date: datetime.date) -> int:
 
 
 def growth_cap(age: float, pa: int, cap: CapRule) -> int:
-    """Return the CA ceiling for this age: linear from start to end ratio."""
+    """Return the CA ceiling for this age.
+
+    At or below start_age the ratio is start_ratio. Between start_age and
+    end_age it interpolates linearly towards end_ratio. At or above end_age the
+    ceiling is PA itself.
+    """
     if age <= cap.start_age:
         ratio = cap.start_ratio
     elif age >= cap.end_age:
-        ratio = cap.end_ratio
+        ratio = 1.0
     else:
         span = cap.end_age - cap.start_age
         ratio = cap.start_ratio + (
@@ -81,7 +86,7 @@ def growth_target(ca: int, pa: int, age: float, settings: GrowthSettings) -> int
     """Return CA + monthly_gain when it stays within the age cap; else None."""
     if not (1 <= ca <= 200 and 1 <= pa <= 200) or ca > pa:
         return None
-    if age >= settings.cap.end_age:
+    if age >= settings.max_age:
         return None
     cap = growth_cap(age, pa, settings.cap)
     new_ca = ca + settings.monthly_gain
@@ -96,9 +101,8 @@ def controlled_players(memory: Memory) -> list[Player]:
 def growth_plan(players: Iterable[Player], settings: GrowthSettings) -> list[Change]:
     """Return the planned CA changes, deduplicated by player record address.
 
-    Players at or above ``cap.end_age`` do not grow. Below that, the cap is
-    linear: ``start_age`` uses ``start_ratio`` and the ratio rises towards
-    ``end_ratio``.
+    Players at or above ``settings.max_age`` do not grow. Below that, the cap
+    is linear up to ``cap.end_age`` and PA itself from there to ``max_age``.
     """
     changes: list[Change] = []
     seen: set[int] = set()

@@ -26,8 +26,9 @@ from fm24_ca_growth import (  # noqa: E402
 from fm24_config import CapRule, GrowthSettings, load_growth_settings  # noqa: E402
 
 GAIN = 2
+MAX_AGE = 23
 CAP = CapRule(18, 0.7, 22, 0.9)
-SETTINGS = GrowthSettings(GAIN, CAP)
+SETTINGS = GrowthSettings(GAIN, MAX_AGE, CAP)
 
 BASE = 0x140000000
 CONTAINER = 0x20000000
@@ -124,7 +125,7 @@ def record(ca: int, pa: int, year: int = 2003, day_of_year: int = 200) -> bytes:
     """Build a minimal player record with a type tag, CA/PA, and birth date.
 
     Default birth date (2003-07-19) makes the player 21.x years old on
-    2025-04-01, which is below the default end_age of 22.
+    2025-04-01, which is below the default max_age of 23.
     """
     raw = bytearray(RECORD_READ)
     raw[0:4] = PLAYER_TAG.to_bytes(4, "little")
@@ -205,8 +206,9 @@ class GrowthCapTest(unittest.TestCase):
         self.assertEqual(growth_cap(19.0, 200, CAP), 150)
         self.assertEqual(growth_cap(20.0, 200, CAP), 160)
         self.assertEqual(growth_cap(21.0, 200, CAP), 170)
-        self.assertEqual(growth_cap(22.0, 200, CAP), 180)
-        self.assertEqual(growth_cap(23.0, 200, CAP), 180)
+        self.assertEqual(growth_cap(21.9, 200, CAP), 179)
+        self.assertEqual(growth_cap(22.0, 200, CAP), 200)
+        self.assertEqual(growth_cap(23.0, 200, CAP), 200)
 
     def test_ratio_uses_round(self) -> None:
         self.assertEqual(growth_cap(17.1, 180, CAP), 126)
@@ -220,6 +222,7 @@ class SettingsTest(unittest.TestCase):
     def test_loads_growth_settings(self) -> None:
         data = {
             "monthly_gain": GAIN,
+            "max_age": MAX_AGE,
             "cap": {
                 "start_age": 18,
                 "start_ratio": 0.7,
@@ -233,6 +236,7 @@ class SettingsTest(unittest.TestCase):
             settings = load_growth_settings(path)
 
         self.assertEqual(settings.monthly_gain, GAIN)
+        self.assertEqual(settings.max_age, MAX_AGE)
         self.assertEqual(settings.cap, CAP)
 
 
@@ -252,24 +256,31 @@ class GrowthPlanTest(unittest.TestCase):
             [Change("Grows", 1, 100, 100 + GAIN, 150, 120, 20.0)],
         )
 
-    def test_stops_at_end_age(self) -> None:
-        self.assertIsNone(growth_target(100, 150, 22.0, SETTINGS))
-        self.assertIsNone(growth_target(100, 150, 22.9, SETTINGS))
+    def test_cap_is_pa_from_end_age_to_max_age(self) -> None:
+        self.assertEqual(growth_target(100, 150, 22.0, SETTINGS), 102)
+        self.assertEqual(growth_target(100, 150, 22.9, SETTINGS), 102)
+
+    def test_stops_at_max_age(self) -> None:
         self.assertIsNone(growth_target(100, 150, 23.0, SETTINGS))
 
-    def test_skips_players_at_or_above_end_age(self) -> None:
+    def test_skips_players_at_or_above_max_age(self) -> None:
         changes = growth_plan(
             [
                 player(1, 100, 150, "Age 21.9", 21.9),
                 player(2, 100, 150, "Age 22.0", 22.0),
                 player(3, 100, 150, "Age 22.9", 22.9),
-                player(4, 100, 150, "Unknown", None),
+                player(4, 100, 150, "Age 23.0", 23.0),
+                player(5, 100, 150, "Unknown", None),
             ],
             SETTINGS,
         )
         self.assertEqual(
             changes,
-            [Change("Age 21.9", 1, 100, 100 + GAIN, 150, 134, 21.9)],
+            [
+                Change("Age 21.9", 1, 100, 100 + GAIN, 150, 134, 21.9),
+                Change("Age 22.0", 2, 100, 100 + GAIN, 150, 150, 22.0),
+                Change("Age 22.9", 3, 100, 100 + GAIN, 150, 150, 22.9),
+            ],
         )
 
     def test_deduplicates_the_same_record(self) -> None:
