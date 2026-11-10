@@ -71,6 +71,26 @@ pa = 0x202
 record_read = 0x3D8
 
 
+# Position ratings: record + offset -> one byte, 20 = best, 1 = cannot play.
+# The game treats 15 and above as "can play this position".
+[player.positions]
+GK = 0x208
+SW = 0x209
+DL = 0x20A
+DC = 0x20B
+DR = 0x20C
+DM = 0x20D
+ML = 0x20E
+MC = 0x20F
+MR = 0x210
+AML = 0x211
+AMC = 0x212
+AMR = 0x213
+ST = 0x214
+WBL = 0x215
+WBR = 0x216
+
+
 # Record type tag -> person sub-object offset. The 4-byte tag at the start of a
 # player record selects the layout. It is a type tag, not a pointer.
 #   0x45A4E958 -> normal player record, person at +0x278

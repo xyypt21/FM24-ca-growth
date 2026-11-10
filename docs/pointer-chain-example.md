@@ -188,3 +188,25 @@ address. The watcher compares the club address on each loop iteration. When it
 changes, the state resets to the current month without settling and the next
 plan is previewed. Every settlement re-reads all roster, team, and player
 addresses, so no address is cached across reloads.
+
+## fm24_lineup.py
+
+Reads one position rating byte per position from the player record. A rating of
+15 or more means the player can play that position:
+
+```text
+0x1038E63A8                              player record
+  + GK 0x208
+  = 0x1038E65B0
+        read u8      -> 1                  cannot play GK
+  + DC 0x20B
+  = 0x1038E65B3
+        read u8      -> 20                 can play DC
+  + ST 0x214
+  = 0x1038E65BC
+        read u8      -> 12                 cannot play ST
+```
+
+The lineup selector fills the most constrained slot first, ranked by CA and then
+PA. Slots with no eligible player left are filled by the best remaining player
+and marked as out of position.
