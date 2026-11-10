@@ -145,8 +145,9 @@ def watch(memory: Memory, gain: int) -> int:
 
     Save reload detection: the human manager object address changes every time
     the game (re)loads a save. When it changes, all previously read roster,
-    team, and player addresses are stale, so the month cursor is reset to force
-    a fresh settlement on the next loop iteration.
+    team, and player addresses are stale. The settled month is intentionally
+    not reset: reloading on July 4 must not re-settle a month already settled
+    on July 1.
     """
     today = game_date(memory)
     if today is None:
@@ -168,16 +169,16 @@ def watch(memory: Memory, gain: int) -> int:
             continue
 
         # Save reload: the manager address changes when a save is (re)loaded.
+        # All previously read addresses are stale, but the settled month is kept
+        # so a reload does not re-settle the current month.
         current_manager = manager_address(memory)
         if current_manager != last_manager:
             print(
                 f"Save reloaded at {now}; manager address changed "
                 f"0x{last_manager:X} -> 0x{current_manager:X}. "
-                f"Addresses are stale; resetting."
+                f"Addresses are stale; re-reading roster on next settlement."
             )
             last_manager = current_manager
-            # Force a settlement for the current month on the next iteration.
-            last_month = month_key(now) - 1
             continue
 
         key = month_key(now)
