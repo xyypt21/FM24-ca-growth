@@ -43,6 +43,15 @@ uid_off = 0x0C
 club_off = 0x30
 
 
+[club]
+# Field offset: club + value -> owned teams array begin (end is at +0x20).
+# Usually the first team, reserves, U19, and U18.
+teams_begin = 0x18
+# Field offset: club + value -> linked teams array begin (end is at +0x38).
+# The B team lives under another club entry and is linked from here.
+linked_teams_begin = 0x30
+
+
 [read]
 # Valid pointer range. The lowest allocatable user-mode address on Windows x64
 # is 64 KB; the upper bound stays below the canonical limit 0x7FFFFFFFFFFF so

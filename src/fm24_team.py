@@ -1,14 +1,17 @@
-"""Print the UID of the team controlled by the human manager.
+"""Print the UIDs of all teams controlled by the human manager.
 
     manager_address(memory)       -> human manager record
     manager + person_off          -> person sub-object
     person + contract_off         -> contract
     contract + team_off           -> managed team
-    team + uid_off                -> team UID (u32)
+    team + club_off               -> club
+    club + teams_begin            -> owned teams (first team, reserves, youth)
+    club + linked_teams_begin     -> linked teams (B team)
+    each team + uid_off           -> team UID (u32)
 
 Usage:
 
-    python src/fm24_team.py       # prints one UID line; no arguments
+    python src/fm24_team.py       # prints one UID per line; no arguments
 
 The game must be running with a save loaded.
 """
@@ -34,27 +37,58 @@ def user_team(memory: Memory) -> int:
     return team
 
 
-def team_uid(memory: Memory) -> int:
-    """Return the UID of the team controlled by the human manager."""
+def user_club(memory: Memory) -> int:
+    """Return the club of the team controlled by the human manager."""
     team = user_team(memory)
-    uid = memory.read_u32(team + memory.config["team"]["uid_off"])
-    if not uid:
-        raise RuntimeError("Failed to read the team UID")
-    return uid
+    club = memory.read_ptr(team + memory.config["team"]["club_off"])
+    if not club or not memory.is_valid_ptr(club):
+        raise RuntimeError("The managed team has no club pointer")
+    return club
 
 
-def read_team_uid(config: Config | None = None) -> int:
-    """Open the game process and read the managed team UID."""
+def club_teams(memory: Memory) -> list[int]:
+    """Return all teams owned or linked by the manager's club."""
+    club = user_club(memory)
+    club_cfg = memory.config["club"]
+    own = memory.read_ptr_vector(club + club_cfg["teams_begin"], "club teams")
+    linked = memory.read_ptr_vector(
+        club + club_cfg["linked_teams_begin"], "linked teams"
+    )
+    teams = [team for team in own + linked if memory.is_valid_ptr(team)]
+    if not teams:
+        raise RuntimeError("The club has no teams")
+    return teams
+
+
+def team_uids(memory: Memory) -> list[int]:
+    """Return the UIDs of every team controlled by the human manager."""
+    uid_off = memory.config["team"]["uid_off"]
+    uids: list[int] = []
+    seen: set[int] = set()
+    for team in club_teams(memory):
+        uid = memory.read_u32(team + uid_off)
+        if uid and uid not in seen:
+            seen.add(uid)
+            uids.append(uid)
+
+    if not uids:
+        raise RuntimeError("Failed to read the team UIDs")
+    return uids
+
+
+def read_team_uids(config: Config | None = None) -> list[int]:
+    """Open the game process and read all controlled team UIDs."""
     if config is None:
         config = load_config()
     with Memory.open(config) as memory:
-        return team_uid(memory)
+        return team_uids(memory)
 
 
 def main() -> int:
-    """Command-line entry point: print the managed team UID."""
+    """Command-line entry point: print every controlled team UID."""
     try:
-        print(read_team_uid())
+        for uid in read_team_uids():
+            print(uid)
     except RuntimeError as error:
         print(f"Error: {error}")
         return 1

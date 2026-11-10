@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fm24_manager import manager_address, manager_uid  # noqa: E402
-from fm24_team import team_uid  # noqa: E402
+from fm24_team import team_uids, user_team  # noqa: E402
 
 BASE = 0x140000000
 CONTAINER = 0x20000000
@@ -18,8 +18,13 @@ MANAGER = 0x40000000
 PERSON = MANAGER + 0x450
 CONTRACT = 0x50000000
 TEAM = 0x60000000
+CLUB = 0x70000000
+YOUTH_TEAM = 0x80000000
+B_TEAM = 0x90000000
 UID = 2002076260
 TEAM_UID = 920
+YOUTH_UID = 2000069496
+B_TEAM_UID = 3609393
 
 CONFIG = {
     "manager": {
@@ -29,7 +34,8 @@ CONFIG = {
     },
     "person": {"uid_off": 0x0C, "contract_off": 0xC8},
     "contract": {"team_off": 0x10},
-    "team": {"uid_off": 0x0C},
+    "team": {"uid_off": 0x0C, "club_off": 0x30},
+    "club": {"teams_begin": 0x18, "linked_teams_begin": 0x30},
     "read": {"min_ptr": 0x10000, "max_ptr": 0x7FF000000000},
 }
 
@@ -37,17 +43,26 @@ CONFIG = {
 class FakeMemory:
     """Minimal memory stand-in that returns values by address."""
 
-    def __init__(self, values: dict[int, int], u32: dict[int, int] | None = None):
+    def __init__(
+        self,
+        values: dict[int, int],
+        u32: dict[int, int] | None = None,
+        vectors: dict[int, list[int]] | None = None,
+    ):
         self.base = BASE
         self.config = CONFIG
         self.values = values
         self.u32 = u32 or {}
+        self.vectors = vectors or {}
 
     def read_ptr(self, address: int) -> int | None:
         return self.values.get(address)
 
     def read_u32(self, address: int) -> int | None:
         return self.u32.get(address)
+
+    def read_ptr_vector(self, address: int, label: str) -> list[int]:
+        return self.vectors.get(address, [])
 
     def is_valid_ptr(self, address: int) -> bool:
         limits = self.config["read"]
@@ -114,6 +129,7 @@ class ManagerUidTest(unittest.TestCase):
 def manager_memory(
     values: dict[int, int] | None = None,
     u32: dict[int, int] | None = None,
+    vectors: dict[int, list[int]] | None = None,
 ) -> FakeMemory:
     """Return a FakeMemory with the manager chain already in place."""
     pointers = {
@@ -122,7 +138,27 @@ def manager_memory(
         BEGIN: MANAGER,
     }
     pointers.update(values or {})
-    return FakeMemory(pointers, u32)
+    return FakeMemory(pointers, u32, vectors)
+
+
+def club_memory(
+    own_teams: list[int],
+    linked_teams: list[int] | None = None,
+    u32: dict[int, int] | None = None,
+) -> FakeMemory:
+    """Return a FakeMemory with the manager, contract, team, and club chains."""
+    return manager_memory(
+        {
+            PERSON + 0xC8: CONTRACT,
+            CONTRACT + 0x10: TEAM,
+            TEAM + 0x30: CLUB,
+        },
+        u32,
+        {
+            CLUB + 0x18: own_teams,
+            CLUB + 0x30: linked_teams or [],
+        },
+    )
 
 
 class TeamUidTest(unittest.TestCase):
@@ -131,35 +167,68 @@ class TeamUidTest(unittest.TestCase):
             {
                 PERSON + 0xC8: CONTRACT,
                 CONTRACT + 0x10: TEAM,
-            },
-            {TEAM + 0x0C: TEAM_UID},
+            }
         )
-        self.assertEqual(team_uid(memory), TEAM_UID)
+        self.assertEqual(user_team(memory), TEAM)
+
+    def test_returns_owned_and_linked_team_uids(self) -> None:
+        memory = club_memory(
+            [TEAM, YOUTH_TEAM],
+            [B_TEAM],
+            {
+                TEAM + 0x0C: TEAM_UID,
+                YOUTH_TEAM + 0x0C: YOUTH_UID,
+                B_TEAM + 0x0C: B_TEAM_UID,
+            },
+        )
+        self.assertEqual(team_uids(memory), [TEAM_UID, YOUTH_UID, B_TEAM_UID])
+
+    def test_duplicate_teams_are_removed(self) -> None:
+        memory = club_memory(
+            [TEAM, YOUTH_TEAM],
+            [YOUTH_TEAM],
+            {
+                TEAM + 0x0C: TEAM_UID,
+                YOUTH_TEAM + 0x0C: YOUTH_UID,
+            },
+        )
+        self.assertEqual(team_uids(memory), [TEAM_UID, YOUTH_UID])
 
     def test_missing_contract_raises(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "No team belongs"):
-            team_uid(manager_memory())
+            team_uids(manager_memory())
 
     def test_invalid_contract_raises(self) -> None:
         memory = manager_memory({PERSON + 0xC8: 0x10})
         with self.assertRaisesRegex(RuntimeError, "No team belongs"):
-            team_uid(memory)
+            team_uids(memory)
 
     def test_missing_team_raises(self) -> None:
         memory = manager_memory({PERSON + 0xC8: CONTRACT})
         with self.assertRaisesRegex(RuntimeError, "No team belongs"):
-            team_uid(memory)
+            team_uids(memory)
 
-    def test_zero_team_uid_raises(self) -> None:
+    def test_missing_club_raises(self) -> None:
         memory = manager_memory(
             {
                 PERSON + 0xC8: CONTRACT,
                 CONTRACT + 0x10: TEAM,
-            },
-            {TEAM + 0x0C: 0},
+            }
         )
-        with self.assertRaisesRegex(RuntimeError, "team UID"):
-            team_uid(memory)
+        with self.assertRaisesRegex(RuntimeError, "no club pointer"):
+            team_uids(memory)
+
+    def test_club_without_teams_raises(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "no teams"):
+            team_uids(club_memory([]))
+
+    def test_zero_team_uids_raise(self) -> None:
+        memory = club_memory(
+            [TEAM],
+            u32={TEAM + 0x0C: 0},
+        )
+        with self.assertRaisesRegex(RuntimeError, "team UIDs"):
+            team_uids(memory)
 
 
 if __name__ == "__main__":

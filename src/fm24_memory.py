@@ -80,6 +80,23 @@ class Memory:
         raw = self.read_bytes(address, 4)
         return int.from_bytes(raw, "little") if raw else None
 
+    def read_ptr_vector(self, address: int, label: str) -> list[int]:
+        """Read a begin/end pointer vector; return [] when it does not exist."""
+        begin = self.read_ptr(address)
+        end = self.read_ptr(address + 8)
+        if not begin or not end or end <= begin:
+            return []
+
+        if (end - begin) % 8:
+            raise RuntimeError(
+                f"{label} range is invalid (save not loaded or wrong offsets)"
+            )
+
+        raw = self.read_bytes(begin, end - begin)
+        if not raw:
+            raise RuntimeError(f"Failed to read {label}")
+        return [int.from_bytes(raw[i : i + 8], "little") for i in range(0, len(raw), 8)]
+
     def is_valid_ptr(self, address: int) -> bool:
         """Return whether address falls inside the configured pointer range."""
         limits = self.config["read"]
