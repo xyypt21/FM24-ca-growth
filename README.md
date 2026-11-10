@@ -152,42 +152,46 @@ pythonw src/fm24_ca_growth_gui.pyw
 
 ## Pick a lineup
 
-Build CA and APA first/second 4-3-3 lineups from every controlled team with
-scipy's assignment solver:
+Build CA, ACA, and APA first/second 4-3-3 lineups from every controlled team
+with scipy's assignment solver:
 
 ```powershell
 python src/fm24_lineup.py   # refresh every 30 seconds; Ctrl+C stops
 ```
 
-The four lineups are:
+The six lineups are:
 
 ```text
 CA First XI
 CA Second XI
+ACA First XI
+ACA Second XI
 APA First XI
 APA Second XI
 ```
 
-APA projects current CA to `max_age` using the growth settings:
+APA projects current CA to `max_age`; ACA adds six months of growth:
 
 ```text
 age >= max_age: APA = CA
 age <  max_age: APA = min(PA, round(CA + monthly_gain * 12 * (max_age - age)))
+
+age >= max_age: ACA = CA
+age <  max_age: ACA = min(CA + 6 * monthly_gain, cap, APA)
 ```
 
 Example:
 
 ```text
-CA First XI
-Slot Name                          Age  CA    APA  Positions
-GK   Marius Müller                30.0 126  126.0  GK
-DL   Thomas Ouwejan               26.7 123  123.0  DL/DM/ML/WBL
-DR   Brandon Soppy                21.3 127    168  DL/DR/MR/WBL/WBR
+ACA First XI
+Slot Name                          Age  CA  ACA  APA  Positions
+GK   Marius Müller                30.0 126  126  126  GK
+AMC  Assan Ouédraogo              17.6 127  126  180  MC/AML/AMC
 ...
 ```
 
-- `ca` ranks by current ability; `apa` ranks by projected CA.
-- `monthly_gain` and `max_age` come from `src/config.json`.
+- `ca` ranks by current ability, `aca` by six-month growth, `apa` by projected CA.
+- `monthly_gain`, `max_age`, and `cap` come from `src/config.json`.
 - The best XI is selected first, then the second XI from the remaining players.
 - Positions are read from the player record (`>= 15` can play the slot).
 - Players on loan (loaned in or loaned out) are excluded.

@@ -1,13 +1,18 @@
-"""Pick CA and APA first/second 4-3-3 lineups with scipy's assignment solver.
+"""Pick CA, ACA, and APA first/second 4-3-3 lineups with scipy's solver.
 
-For each metric (CA and APA), scipy assigns players to the 11 formation slots.
-The best XI is selected first, then the same solver picks the second XI from the
-remaining players.
+For each metric (CA, ACA, APA), scipy assigns players to the 11 formation
+slots. The best XI is selected first, then the same solver picks the second XI
+from the remaining players.
 
 APA projects CA to ``max_age`` using the monthly growth settings:
 
     age >= max_age: APA = CA
-    age <  max_age: APA = CA + monthly_gain * 12 * (max_age - age)
+    age <  max_age: APA = min(PA, round(CA + monthly_gain * 12 * (max_age - age)))
+
+ACA adds six months of growth, capped by the age cap and APA:
+
+    age >= max_age: ACA = CA
+    age <  max_age: ACA = min(CA + 6 * monthly_gain, cap, APA)
 
 Run:
 
@@ -23,6 +28,7 @@ import time
 
 from scipy.optimize import linear_sum_assignment
 
+from fm24_ca_growth import growth_cap
 from fm24_config import GrowthSettings, load_config, load_growth_settings
 from fm24_memory import Memory
 from fm24_players import Player, all_players
@@ -44,7 +50,7 @@ SLOTS = (
     "AMR",
     "ST",
 )
-METRICS = ("ca", "apa")
+METRICS = ("ca", "aca", "apa")
 FORBIDDEN = 10**9
 
 
@@ -84,12 +90,29 @@ def predict_apa(player: Player, settings: GrowthSettings) -> int:
     return min(player["pa"], round(projected))
 
 
+def predict_aca(player: Player, settings: GrowthSettings) -> int:
+    """CA plus six months of growth, capped by the age cap and APA."""
+    age = player["age"]
+    ca = player["ca"]
+    if age is None or age >= settings.max_age:
+        return ca
+    cap = growth_cap(age, player["pa"], settings.cap)
+    return min(ca + 6 * settings.monthly_gain, cap, predict_apa(player, settings))
+
+
 def build_lineups(
     players: list[Player], settings: GrowthSettings
 ) -> list[tuple[str, list[tuple[str, Player]]]]:
-    """Return CA first/second and APA first/second, in display order."""
+    """Return CA, ACA, and APA first/second lineups, in display order."""
     players = [player for player in players if not player.get("loan")]
-    enriched = [{**player, "apa": predict_apa(player, settings)} for player in players]
+    enriched = [
+        {
+            **player,
+            "apa": predict_apa(player, settings),
+            "aca": predict_aca(player, settings),
+        }
+        for player in players
+    ]
     lineups: list[tuple[str, list[tuple[str, Player]]]] = []
     for metric in METRICS:
         first = select_lineup(enriched, metric)
@@ -112,14 +135,16 @@ def format_lineups(
     lines: list[str] = []
     for label, lineup in lineups:
         lines.append(label)
-        lines.append(f"{'Slot':<5}{'Name':<28}{'Age':>5}{'CA':>4}{'APA':>7}  Positions")
+        lines.append(
+            f"{'Slot':<5}{'Name':<28}{'Age':>5}{'CA':>4}{'ACA':>5}{'APA':>5}  Positions"
+        )
         for slot, player in lineup:
             age = player["age"]
             age_text = "-" if age is None else f"{age:.1f}"
             positions = "/".join(player["positions"]) or "-"
             lines.append(
                 f"{slot:<5}{str(player['name']):<28}{age_text:>5}"
-                f"{player['ca']:>4}{player['apa']:>7}  {positions}"
+                f"{player['ca']:>4}{player['aca']:>5}{player['apa']:>5}  {positions}"
             )
         lines.append("")
     return "\n".join(lines).rstrip()

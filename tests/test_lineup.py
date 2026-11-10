@@ -9,7 +9,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fm24_config import CapRule, GrowthSettings  # noqa: E402
-from fm24_lineup import SLOTS, build_lineups, predict_apa  # noqa: E402
+from fm24_lineup import (  # noqa: E402
+    SLOTS,
+    build_lineups,
+    predict_aca,
+    predict_apa,
+)
 
 SETTINGS = GrowthSettings(2, 23, CapRule(18, 0.7, 22, 0.9))
 
@@ -58,13 +63,25 @@ def apa_candidates():
     return players
 
 
+def aca_candidates():
+    """ACA favours the younger player: 150 + 12 = 162, older CA is 160."""
+    players = []
+    address = 1
+    for slot in SLOTS:
+        players.append(player(address, 150, 200, [slot], age=21.5))
+        address += 1
+        players.append(player(address, 160, 200, [slot], age=23.0))
+        address += 1
+    return players
+
+
 class BuildLineupsTest(unittest.TestCase):
-    def test_builds_ca_and_apa_squads(self) -> None:
+    def test_builds_ca_aca_and_apa_squads(self) -> None:
         lineups = build_lineups(two_candidates((200, 100), (200, 100)), SETTINGS)
 
-        self.assertEqual(len(lineups), 4)
-        self.assertEqual([len(lineup) for _, lineup in lineups], [11] * 4)
-        for start in (0, 2):
+        self.assertEqual(len(lineups), 6)
+        self.assertEqual([len(lineup) for _, lineup in lineups], [11] * 6)
+        for start in (0, 2, 4):
             addresses = [
                 player["address"]
                 for _, lineup in lineups[start : start + 2]
@@ -81,8 +98,14 @@ class BuildLineupsTest(unittest.TestCase):
     def test_apa_metric_uses_projected_ca(self) -> None:
         lineups = build_lineups(apa_candidates(), SETTINGS)
 
+        self.assertTrue(all(player["ca"] == 150 for _, player in lineups[4][1]))
+        self.assertTrue(all(player["ca"] == 199 for _, player in lineups[5][1]))
+
+    def test_aca_metric_uses_six_month_growth(self) -> None:
+        lineups = build_lineups(aca_candidates(), SETTINGS)
+
         self.assertTrue(all(player["ca"] == 150 for _, player in lineups[2][1]))
-        self.assertTrue(all(player["ca"] == 199 for _, player in lineups[3][1]))
+        self.assertTrue(all(player["ca"] == 160 for _, player in lineups[3][1]))
 
     def test_raises_when_positions_cannot_be_filled(self) -> None:
         players = [player(index, 100, 120, ["MC"]) for index in range(1, 23)]
@@ -130,6 +153,28 @@ class PredictApaTest(unittest.TestCase):
     def test_unknown_age_uses_current_ca(self) -> None:
         self.assertEqual(
             predict_apa(player(1, 100, 120, ["ST"], age=None), SETTINGS), 100
+        )
+
+
+class PredictAcaTest(unittest.TestCase):
+    def test_adds_six_months_of_growth(self) -> None:
+        self.assertEqual(
+            predict_aca(player(1, 100, 200, ["ST"], age=16.0), SETTINGS), 112
+        )
+
+    def test_capped_by_age_cap(self) -> None:
+        self.assertEqual(
+            predict_aca(player(1, 180, 200, ["ST"], age=17.0), SETTINGS), 140
+        )
+
+    def test_capped_by_apa(self) -> None:
+        self.assertEqual(
+            predict_aca(player(1, 100, 110, ["ST"], age=22.0), SETTINGS), 110
+        )
+
+    def test_max_age_and_older_use_current_ca(self) -> None:
+        self.assertEqual(
+            predict_aca(player(1, 100, 120, ["ST"], age=23.0), SETTINGS), 100
         )
 
 
