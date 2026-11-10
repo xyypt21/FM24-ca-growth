@@ -170,8 +170,8 @@ python scripts/build_exe.py
 
 The script excludes unused standard-library modules (about 11 MB output instead
 of 15 MB) and handles Python builds that ship Tcl 9 inside zip files by adding
-the extracted Tcl/Tk data to the exe. The workflow uses the same script, so
-local and CI builds stay identical.
+the extracted Tcl/Tk data to the exe. The workflow uses Python 3.15 and the same
+script, so local and CI builds stay identical.
 
 ## Pointer chain
 
