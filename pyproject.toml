@@ -12,12 +12,6 @@ dependencies = [
     "psutil",  # locate fm.exe by process name
 ]
 
-[tool.ruff]
-# Matches the convention used in the code: 88 characters per line.
-line-length = 88
-# tomllib requires Python 3.11; do not rewrite for older versions.
-target-version = "py311"
-
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 # Long human-readable messages are fine; wrapping them is not worth the churn.
