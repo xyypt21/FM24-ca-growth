@@ -127,3 +127,32 @@ def load_growth_settings(path: Path = SETTINGS_PATH) -> GrowthSettings:
         float(start_age), float(start_ratio), float(end_age), float(end_ratio)
     )
     return GrowthSettings(gain, max_age, cap)
+
+
+def save_growth_settings(settings: GrowthSettings, path: Path = SETTINGS_PATH) -> None:
+    """Write growth settings back to config.json, preserving other keys."""
+    try:
+        data = load_settings(path)
+    except RuntimeError:
+        data = {}
+
+    data["monthly_gain"] = settings.monthly_gain
+    data["max_age"] = settings.max_age
+    existing = data.get("cap")
+    cap = existing if isinstance(existing, dict) else {}
+    cap.update(
+        {
+            "start_age": settings.cap.start_age,
+            "start_ratio": settings.cap.start_ratio,
+            "end_age": settings.cap.end_age,
+            "end_ratio": settings.cap.end_ratio,
+        }
+    )
+    data["cap"] = cap
+
+    temp = path.with_name(path.name + ".tmp")
+    try:
+        temp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        temp.replace(path)
+    except OSError as error:
+        raise RuntimeError(f"Cannot write settings file {path}: {error}") from error

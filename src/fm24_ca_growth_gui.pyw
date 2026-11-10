@@ -1,11 +1,11 @@
 """Tkinter GUI for monthly CA growth.
 
-Start and stop the watcher, preview the next settlement, and read the current
-settings from ``config.json``. The GUI never edits ``config.json``.
+Start and stop the watcher, preview the next settlement, edit the growth
+settings, and save them back to ``config.json``.
 
-Run with:
+Run by double-clicking this file, or with:
 
-    python src/fm24_ca_growth_gui.py
+    pythonw src/fm24_ca_growth_gui.pyw
 
 The game must be running with a save loaded. Like the CLI watcher, this tool
 WRITES to game memory.
@@ -17,11 +17,18 @@ import contextlib
 import queue
 import threading
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
 
 from fm24_ca_growth import show_plan, watch
-from fm24_config import load_config, load_growth_settings
+from fm24_config import (
+    SETTINGS_PATH,
+    CapRule,
+    GrowthSettings,
+    load_config,
+    load_growth_settings,
+    save_growth_settings,
+)
 from fm24_memory import Memory
 from fm24_players import game_date
 
@@ -32,8 +39,8 @@ class GrowthGui:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("FM24 CA Growth")
-        self.root.geometry("900x620")
-        self.root.minsize(700, 480)
+        self.root.geometry("940x700")
+        self.root.minsize(760, 560)
 
         self.messages: queue.Queue[str] = queue.Queue()
         self.worker: threading.Thread | None = None
@@ -47,13 +54,42 @@ class GrowthGui:
     def _build(self) -> None:
         padding = {"padx": 8, "pady": 4}
 
-        settings_frame = ttk.LabelFrame(self.root, text="Settings (config.json)")
+        settings_frame = ttk.LabelFrame(
+            self.root, text=f"Settings ({SETTINGS_PATH.name})"
+        )
         settings_frame.pack(fill="x", **padding)
 
-        self.settings_var = tk.StringVar()
-        ttk.Label(settings_frame, textvariable=self.settings_var, justify="left").pack(
-            anchor="w", padx=8, pady=6
+        form = ttk.Frame(settings_frame)
+        form.pack(fill="x", padx=8, pady=6)
+
+        self.gain_var = tk.StringVar()
+        self.max_age_var = tk.StringVar()
+        self.start_age_var = tk.StringVar()
+        self.start_ratio_var = tk.StringVar()
+        self.end_age_var = tk.StringVar()
+        self.end_ratio_var = tk.StringVar()
+
+        self._field(form, 0, 0, "Monthly CA gain", self.gain_var)
+        self._field(form, 0, 2, "Max age (no growth at or above)", self.max_age_var)
+        self._field(form, 1, 0, "Cap start age", self.start_age_var)
+        self._field(form, 1, 2, "Cap start ratio (of PA)", self.start_ratio_var)
+        self._field(form, 2, 0, "Cap end age", self.end_age_var)
+        self._field(form, 2, 2, "Cap end ratio (of PA)", self.end_ratio_var)
+
+        ttk.Button(form, text="Save settings", command=self._save_settings).grid(
+            row=3, column=0, sticky="w", pady=(8, 0)
         )
+        ttk.Button(form, text="Reload from file", command=self._refresh_settings).grid(
+            row=3, column=1, sticky="w", pady=(8, 0)
+        )
+
+        self.cap_help_var = tk.StringVar()
+        ttk.Label(
+            settings_frame,
+            textvariable=self.cap_help_var,
+            justify="left",
+            wraplength=880,
+        ).pack(anchor="w", padx=10, pady=(0, 8))
 
         controls = ttk.Frame(self.root)
         controls.pack(fill="x", **padding)
@@ -83,22 +119,101 @@ class GrowthGui:
         )
         self.log.pack(fill="both", expand=True, padx=4, pady=4)
 
+    def _field(
+        self,
+        frame: ttk.Frame,
+        row: int,
+        column: int,
+        label: str,
+        variable: tk.StringVar,
+    ) -> None:
+        ttk.Label(frame, text=label).grid(
+            row=row, column=column, sticky="w", padx=(0, 6), pady=3
+        )
+        ttk.Entry(frame, textvariable=variable, width=10).grid(
+            row=row, column=column + 1, sticky="w", padx=(0, 24), pady=3
+        )
+
     def _refresh_settings(self) -> None:
         try:
             settings = load_growth_settings()
         except RuntimeError as error:
-            self.settings_var.set(f"Cannot load settings: {error}")
+            self._log(f"Settings error: {error}")
             return
 
+        self.gain_var.set(str(settings.monthly_gain))
+        self.max_age_var.set(str(settings.max_age))
+        self.start_age_var.set(f"{settings.cap.start_age:g}")
+        self.start_ratio_var.set(f"{settings.cap.start_ratio:g}")
+        self.end_age_var.set(f"{settings.cap.end_age:g}")
+        self.end_ratio_var.set(f"{settings.cap.end_ratio:g}")
+        self.cap_help_var.set(self._cap_help(settings))
+
+    def _cap_help(self, settings: GrowthSettings) -> str:
         cap = settings.cap
-        self.settings_var.set(
-            f"Monthly gain: {settings.monthly_gain}    "
-            f"Max age: {settings.max_age}\n"
-            f"Cap: age <= {cap.start_age:g} -> {cap.start_ratio:.2f} x PA; "
-            f"{cap.start_age:g}..{cap.end_age:g} -> "
-            f"{cap.end_ratio:.2f} x PA; "
-            f"{cap.end_age:g}..{settings.max_age} -> PA"
+        lines = [
+            "How the CA cap works (cap = PA x ratio):",
+            f"  age <= {cap.start_age:g}: ratio = {cap.start_ratio:g}",
+            f"  {cap.start_age:g} < age < {cap.end_age:g}: ratio rises linearly "
+            f"from {cap.start_ratio:g} to {cap.end_ratio:g}",
+        ]
+        if settings.max_age > cap.end_age:
+            lines.append(
+                f"  {cap.end_age:g} <= age < {settings.max_age}: ratio = 1.0 (full PA)"
+            )
+        lines.append(f"  age >= {settings.max_age}: no CA growth")
+        lines.append("CA grows only when CA + monthly gain does not exceed the cap.")
+        return "\n".join(lines)
+
+    def _collect_settings(self) -> GrowthSettings | None:
+        try:
+            gain = int(self.gain_var.get())
+            max_age = int(self.max_age_var.get())
+            start_age = float(self.start_age_var.get())
+            start_ratio = float(self.start_ratio_var.get())
+            end_age = float(self.end_age_var.get())
+            end_ratio = float(self.end_ratio_var.get())
+        except ValueError:
+            self._settings_error("All fields must be numeric.")
+            return None
+
+        if gain <= 0:
+            self._settings_error("Monthly CA gain must be positive.")
+            return None
+        if max_age < 0:
+            self._settings_error("Max age must be zero or positive.")
+            return None
+        if start_age < 0 or end_age <= start_age:
+            self._settings_error("Require 0 <= start age < end age.")
+            return None
+        if not 0 < start_ratio <= 1 or not 0 < end_ratio <= 1:
+            self._settings_error("Cap ratios must be in (0, 1].")
+            return None
+
+        return GrowthSettings(
+            gain,
+            max_age,
+            CapRule(start_age, start_ratio, end_age, end_ratio),
         )
+
+    def _settings_error(self, message: str) -> None:
+        self._log(f"Settings error: {message}")
+        messagebox.showerror("Invalid settings", message)
+
+    def _save_settings(self) -> None:
+        settings = self._collect_settings()
+        if settings is None:
+            return
+
+        try:
+            save_growth_settings(settings)
+        except RuntimeError as error:
+            self._settings_error(str(error))
+            return
+
+        self._refresh_settings()
+        self._set_status("Settings saved")
+        self._log(f"Saved settings to {SETTINGS_PATH.name}.")
 
     def _schedule(self, callback) -> None:
         """Run a callback on the Tk thread, ignoring a closed window."""

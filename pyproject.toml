@@ -11,5 +11,8 @@ dependencies = [
     "pymem",  # process memory access and process lookup
 ]
 
+[tool.ruff]
+include = ["*.py", "*.pyi", "*.pyw", "**/pyproject.toml"]
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

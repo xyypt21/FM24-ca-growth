@@ -128,18 +128,25 @@ the same privilege level as the game.
 
 ## GUI
 
-The same watcher with buttons and a log window:
+The same watcher with buttons, editable settings, and a log window. Double-click
+the `.pyw` file, or run:
 
 ```powershell
-python src/fm24_ca_growth_gui.py
+pythonw src/fm24_ca_growth_gui.pyw
 ```
 
 - **Start** runs the watcher in a background thread.
 - **Stop** stops it without closing the window.
 - **Preview next settlement** reads the roster and prints the plan; it writes
   nothing.
-- The settings panel shows `monthly_gain`, `max_age`, and the linear `cap` from
-  `config.json`. The GUI never edits `config.json`.
+- The settings panel edits `monthly_gain`, `max_age`, cap start/end age, and cap
+  start/end ratio. **Save settings** validates the values and writes them back
+  to `config.json`; **Reload from file** discards unsaved edits.
+- The cap help text explains the exact rule:
+  - `age <= start_age`: cap is `PA × start_ratio`
+  - `start_age < age < end_age`: the ratio rises linearly to `end_ratio`
+  - `end_age <= age < max_age`: cap is PA (ratio 1.0)
+  - `age >= max_age`: no CA growth
 - Startup and save reload still print the automatic preview into the log.
 
 ## Pointer chain
@@ -183,7 +190,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_team.py` | All controlled team UIDs and command-line entry point |
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
-| `src/fm24_ca_growth_gui.py` | Tkinter GUI for the CA growth watcher |
+| `src/fm24_ca_growth_gui.pyw` | Tkinter GUI for the CA growth watcher |
 | `src/fm24_memory.py` | Process access, low-level reads/writes, and pointer vectors |
 | `src/config.json` | Growth settings: `monthly_gain`, `max_age`, and the linear `cap` |
 | `src/fm24_config.py` | Load and validate `offsets.toml` and `config.json` |

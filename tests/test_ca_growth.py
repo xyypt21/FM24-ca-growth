@@ -24,7 +24,12 @@ from fm24_ca_growth import (  # noqa: E402
     show_plan,
     watch,
 )
-from fm24_config import CapRule, GrowthSettings, load_growth_settings  # noqa: E402
+from fm24_config import (  # noqa: E402
+    CapRule,
+    GrowthSettings,
+    load_growth_settings,
+    save_growth_settings,
+)
 
 GAIN = 2
 MAX_AGE = 23
@@ -239,6 +244,32 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.monthly_gain, GAIN)
         self.assertEqual(settings.max_age, MAX_AGE)
         self.assertEqual(settings.cap, CAP)
+
+    def test_save_settings_round_trip(self) -> None:
+        data = {
+            "monthly_gain": 1,
+            "max_age": 30,
+            "extra": "keep me",
+            "cap": {
+                "start_age": 17,
+                "start_ratio": 0.6,
+                "end_age": 21,
+                "end_ratio": 0.95,
+                "extra": True,
+            },
+        }
+        settings = GrowthSettings(5, 25, CapRule(19, 0.65, 23, 0.95))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            save_growth_settings(settings, path)
+
+            loaded = load_growth_settings(path)
+            raw = json.loads(path.read_text(encoding="utf-8"))
+
+        self.assertEqual(loaded, settings)
+        self.assertEqual(raw["extra"], "keep me")
+        self.assertEqual(raw["cap"]["extra"], True)
 
 
 class GrowthPlanTest(unittest.TestCase):
