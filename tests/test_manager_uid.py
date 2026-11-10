@@ -8,8 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from fm24_memory import manager_address  # noqa: E402
-from manager_uid import manager_uid  # noqa: E402
+from manager_uid import manager_address, manager_uid  # noqa: E402
 from team_uid import team_uid  # noqa: E402
 
 BASE = 0x140000000

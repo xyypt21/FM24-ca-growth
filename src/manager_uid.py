@@ -14,7 +14,29 @@ The game must be running with a save loaded.
 from __future__ import annotations
 
 from fm24_config import Config, load_config
-from fm24_memory import Memory, manager_address
+from fm24_memory import Memory
+
+
+def manager_address(memory: Memory) -> int:
+    """Follow the pointer chain and return the human manager record address."""
+    manager_cfg = memory.config["manager"]
+
+    container = memory.read_ptr(memory.base + manager_cfg["container_rva"])
+    if not container:
+        raise RuntimeError(
+            "Failed to read the manager container: save not loaded or wrong offsets"
+        )
+
+    # container + vector_off is the array begin; begin[0] is the manager
+    # (the array contains only the human manager).
+    begin = memory.read_ptr(container + manager_cfg["vector_off"])
+    if not begin:
+        raise RuntimeError("Failed to read the human manager array")
+
+    manager = memory.read_ptr(begin)
+    if manager is None or not memory.is_valid_ptr(manager):
+        raise RuntimeError("The human manager pointer is invalid")
+    return manager
 
 
 def manager_uid(memory: Memory) -> int:
