@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
+from pathlib import Path
 
-from manager_uid import manager_address, manager_uid
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from manager_uid import manager_address, manager_uid  # noqa: E402
 
 BASE = 0x140000000
 CONTAINER = 0x20000000

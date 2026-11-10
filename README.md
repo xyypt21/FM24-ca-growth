@@ -17,7 +17,7 @@ python -m pip install pymem psutil
 ## Read the manager UID
 
 ```powershell
-python manager_uid.py
+python src/manager_uid.py
 ```
 
 The script prints one UID line:
@@ -38,17 +38,17 @@ exe + manager.container_rva   -> manager container
       person + uid_off        -> UID (u32)
 ```
 
-All offsets live in `offsets.toml`. Update only that file when the game version
-changes.
+All offsets live in `src/offsets.toml`. Update only that file when the game
+version changes.
 
 ## Project layout
 
 | File | Responsibility |
 |---|---|
-| `manager_uid.py` | Command-line entry point and pointer chain for the manager UID |
-| `fm24_memory.py` | Open the process, read bytes, pointers, and u32 values |
-| `fm24_config.py` | Load and validate `offsets.toml` |
-| `offsets.toml` | FM24 memory offsets |
+| `src/manager_uid.py` | Command-line entry point and pointer chain for the manager UID |
+| `src/fm24_memory.py` | Open the process, read bytes, pointers, and u32 values |
+| `src/fm24_config.py` | Load and validate `offsets.toml` |
+| `src/offsets.toml` | FM24 memory offsets |
 | `tests/` | Unit tests (no game process required) |
 
 ## Development checks
