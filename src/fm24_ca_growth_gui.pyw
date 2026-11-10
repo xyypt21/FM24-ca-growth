@@ -45,6 +45,8 @@ class GrowthGui:
         self.messages: queue.Queue[str] = queue.Queue()
         self.worker: threading.Thread | None = None
         self.stop_event = threading.Event()
+        self._loading = False
+        self._save_job: str | None = None
 
         self._build()
         self._refresh_settings()
@@ -69,6 +71,16 @@ class GrowthGui:
         self.end_age_var = tk.StringVar()
         self.end_ratio_var = tk.StringVar()
 
+        for variable in (
+            self.gain_var,
+            self.max_age_var,
+            self.start_age_var,
+            self.start_ratio_var,
+            self.end_age_var,
+            self.end_ratio_var,
+        ):
+            variable.trace_add("write", self._queue_autosave)
+
         self._field(form, 0, 0, "Monthly CA gain", self.gain_var)
         self._field(form, 0, 2, "Max age (no growth at or above)", self.max_age_var)
         self._field(form, 1, 0, "Cap start age", self.start_age_var)
@@ -76,20 +88,9 @@ class GrowthGui:
         self._field(form, 2, 0, "Cap end age", self.end_age_var)
         self._field(form, 2, 2, "Cap end ratio (of PA)", self.end_ratio_var)
 
-        ttk.Button(form, text="Save settings", command=self._save_settings).grid(
+        ttk.Button(form, text="How cap works", command=self._show_cap_help).grid(
             row=3, column=0, sticky="w", pady=(8, 0)
         )
-        ttk.Button(form, text="Reload from file", command=self._refresh_settings).grid(
-            row=3, column=1, sticky="w", pady=(8, 0)
-        )
-
-        self.cap_help_var = tk.StringVar()
-        ttk.Label(
-            settings_frame,
-            textvariable=self.cap_help_var,
-            justify="left",
-            wraplength=880,
-        ).pack(anchor="w", padx=10, pady=(0, 8))
 
         controls = ttk.Frame(self.root)
         controls.pack(fill="x", **padding)
@@ -141,13 +142,16 @@ class GrowthGui:
             self._log(f"Settings error: {error}")
             return
 
-        self.gain_var.set(str(settings.monthly_gain))
-        self.max_age_var.set(str(settings.max_age))
-        self.start_age_var.set(f"{settings.cap.start_age:g}")
-        self.start_ratio_var.set(f"{settings.cap.start_ratio:g}")
-        self.end_age_var.set(f"{settings.cap.end_age:g}")
-        self.end_ratio_var.set(f"{settings.cap.end_ratio:g}")
-        self.cap_help_var.set(self._cap_help(settings))
+        self._loading = True
+        try:
+            self.gain_var.set(str(settings.monthly_gain))
+            self.max_age_var.set(str(settings.max_age))
+            self.start_age_var.set(f"{settings.cap.start_age:g}")
+            self.start_ratio_var.set(f"{settings.cap.start_ratio:g}")
+            self.end_age_var.set(f"{settings.cap.end_age:g}")
+            self.end_ratio_var.set(f"{settings.cap.end_ratio:g}")
+        finally:
+            self._loading = False
 
     def _cap_help(self, settings: GrowthSettings) -> str:
         cap = settings.cap
@@ -165,7 +169,42 @@ class GrowthGui:
         lines.append("CA grows only when CA + monthly gain does not exceed the cap.")
         return "\n".join(lines)
 
-    def _collect_settings(self) -> GrowthSettings | None:
+    def _queue_autosave(self, *_args: object) -> None:
+        """Debounce edits, then save the settings automatically."""
+        if self._loading:
+            return
+        if self._save_job is not None:
+            with contextlib.suppress(tk.TclError):
+                self.root.after_cancel(self._save_job)
+        self._save_job = self.root.after(500, self._autosave_settings)
+
+    def _autosave_settings(self) -> None:
+        self._save_job = None
+        if self._persist_current_settings(popup=False):
+            self._set_status("Settings saved")
+            self._log(f"Saved settings to {SETTINGS_PATH.name}.")
+        else:
+            self._set_status("Invalid settings (not saved)")
+
+    def _persist_current_settings(self, popup: bool = True) -> bool:
+        """Validate and save the current form values; cancel a pending save."""
+        if self._save_job is not None:
+            with contextlib.suppress(tk.TclError):
+                self.root.after_cancel(self._save_job)
+            self._save_job = None
+
+        settings = self._collect_settings(popup=popup)
+        if settings is None:
+            return False
+
+        try:
+            save_growth_settings(settings)
+        except RuntimeError as error:
+            self._settings_error(str(error), popup)
+            return False
+        return True
+
+    def _collect_settings(self, popup: bool = True) -> GrowthSettings | None:
         try:
             gain = int(self.gain_var.get())
             max_age = int(self.max_age_var.get())
@@ -174,20 +213,20 @@ class GrowthGui:
             end_age = float(self.end_age_var.get())
             end_ratio = float(self.end_ratio_var.get())
         except ValueError:
-            self._settings_error("All fields must be numeric.")
+            self._settings_error("All fields must be numeric.", popup)
             return None
 
         if gain <= 0:
-            self._settings_error("Monthly CA gain must be positive.")
+            self._settings_error("Monthly CA gain must be positive.", popup)
             return None
         if max_age < 0:
-            self._settings_error("Max age must be zero or positive.")
+            self._settings_error("Max age must be zero or positive.", popup)
             return None
         if start_age < 0 or end_age <= start_age:
-            self._settings_error("Require 0 <= start age < end age.")
+            self._settings_error("Require 0 <= start age < end age.", popup)
             return None
         if not 0 < start_ratio <= 1 or not 0 < end_ratio <= 1:
-            self._settings_error("Cap ratios must be in (0, 1].")
+            self._settings_error("Cap ratios must be in (0, 1].", popup)
             return None
 
         return GrowthSettings(
@@ -196,24 +235,20 @@ class GrowthGui:
             CapRule(start_age, start_ratio, end_age, end_ratio),
         )
 
-    def _settings_error(self, message: str) -> None:
+    def _settings_error(self, message: str, popup: bool = True) -> None:
         self._log(f"Settings error: {message}")
-        messagebox.showerror("Invalid settings", message)
+        if popup:
+            messagebox.showerror("Invalid settings", message)
 
-    def _save_settings(self) -> None:
-        settings = self._collect_settings()
+    def _show_cap_help(self) -> None:
+        settings = self._collect_settings(popup=False)
         if settings is None:
-            return
-
-        try:
-            save_growth_settings(settings)
-        except RuntimeError as error:
-            self._settings_error(str(error))
-            return
-
-        self._refresh_settings()
-        self._set_status("Settings saved")
-        self._log(f"Saved settings to {SETTINGS_PATH.name}.")
+            try:
+                settings = load_growth_settings()
+            except RuntimeError as error:
+                messagebox.showerror("CA cap rules", f"Cannot read settings: {error}")
+                return
+        messagebox.showinfo("CA cap rules", self._cap_help(settings))
 
     def _schedule(self, callback) -> None:
         """Run a callback on the Tk thread, ignoring a closed window."""
@@ -246,6 +281,8 @@ class GrowthGui:
 
     def _start(self) -> None:
         if self.worker is not None and self.worker.is_alive():
+            return
+        if not self._persist_current_settings(popup=True):
             return
         self.stop_event.clear()
         self.start_button.configure(state="disabled")
@@ -287,6 +324,8 @@ class GrowthGui:
     def _preview(self) -> None:
         if self.worker is not None and self.worker.is_alive():
             return
+        if not self._persist_current_settings(popup=True):
+            return
         self.preview_button.configure(state="disabled")
         self.start_button.configure(state="disabled")
         self._set_status("Reading...")
@@ -315,6 +354,7 @@ class GrowthGui:
         self._set_status("Idle")
 
     def _on_close(self) -> None:
+        self._persist_current_settings(popup=False)
         self.stop_event.set()
         self.root.destroy()
 

@@ -140,9 +140,9 @@ pythonw src/fm24_ca_growth_gui.pyw
 - **Preview next settlement** reads the roster and prints the plan; it writes
   nothing.
 - The settings panel edits `monthly_gain`, `max_age`, cap start/end age, and cap
-  start/end ratio. **Save settings** validates the values and writes them back
-  to `config.json`; **Reload from file** discards unsaved edits.
-- The cap help text explains the exact rule:
+  start/end ratio. Changes are validated and saved to `config.json`
+  automatically (shortly after typing); Start and Preview also save first.
+- **How cap works** opens a window that explains the exact rule:
   - `age <= start_age`: cap is `PA × start_ratio`
   - `start_age < age < end_age`: the ratio rises linearly to `end_ratio`
   - `end_age <= age < max_age`: cap is PA (ratio 1.0)
