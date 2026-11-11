@@ -185,9 +185,9 @@ Save reload detection
 
 When the game reloads a save, all memory addresses change, including the club
 address. The watcher compares the club address on each loop iteration. When it
-changes, the state resets to the current month without settling and the next
-plan is previewed. Every settlement re-reads all roster, team, and player
-addresses, so no address is cached across reloads.
+changes, the state resets to the current month without settling. Every
+settlement re-reads all roster, team, and player addresses, so no address is
+cached across reloads.
 
 ## fm24_lineup.py
 

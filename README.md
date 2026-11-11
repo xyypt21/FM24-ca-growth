@@ -108,9 +108,6 @@ team. All growth settings are read together from `config.json`. Rules:
   `max_age` the cap is PA itself. With `(18, 0.7) -> (22, 0.9)`, age 18 uses
   `PA × 0.7`, age 20 uses `PA × 0.8`, and age 22 gains with cap PA.
 - Rosters, CA, PA, and record addresses are re-read on every settlement.
-- On startup and after a save reload it prints a preview of the players whose
-  CA will grow at the next settlement, sorted by age (youngest first); each
-  line shows age, current/new CA, PA, and cap. The preview does not write.
 - Growth only happens when the in-game month actually changes; starting on the
   1st does not trigger an immediate settlement.
 - Stop with Ctrl+C.
@@ -119,9 +116,9 @@ Save reload detection
 
 When the game reloads a save, all memory addresses change, including the club
 address. The watcher compares the club address on each loop iteration. When it
-changes, the state resets to the current month without settling and the next
-plan is previewed. Every settlement re-reads all roster, team, and player
-addresses, so no address is cached across reloads.
+changes, the state resets to the current month without settling. Every
+settlement re-reads all roster, team, and player addresses, so no address is
+cached across reloads.
 
 This command **writes to game memory**, unlike the reader commands. Run it at
 the same privilege level as the game.
@@ -144,14 +141,16 @@ pythonw src/fm24_ca_growth_gui.pyw
   automatically (shortly after typing); Start and Preview also save first.
   `apa_shortfall_years` and `aca_growth_years` stay in `config.json` and are
   preserved when the panel saves.
-- The log refreshes the buy and sell lists every 30 seconds.
+- The log refreshes the buy and sell lists every 30 seconds while the watcher is
+  running. Each refresh ends with a divider line.
+- Starting the watcher does not print a settlement preview; use **Preview next
+  settlement** when you want one.
 - **How cap works** opens a window that explains the exact rule:
   - `age <= start_age`: cap is `PA × start_ratio`
   - `start_age < age < end_age`: the ratio rises linearly to `end_ratio`
   - `end_age <= age < max_age`: cap is PA (ratio 1.0)
   - `age >= max_age`: no CA growth
 - **Exit** saves the settings, stops the watcher, and closes the window.
-- Startup and save reload still print the automatic preview into the log.
 
 ## Pick a lineup
 

@@ -414,6 +414,9 @@ class WatchTest(unittest.TestCase):
 
         self.assertEqual(result, 0)
         self.assertIn("Stopped.", messages)
+        self.assertFalse(
+            any(message.startswith("Planned CA changes") for message in messages)
+        )
 
 
 if __name__ == "__main__":

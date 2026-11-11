@@ -37,8 +37,9 @@ from fm24_players import all_players, game_date
 from fm24_sell import find_sell
 from fm24_transfers import with_transfers
 
-# Buy and sell report refresh interval.
+# Buy and sell report refresh interval and the separator printed after each run.
 REPORT_INTERVAL_MS = 30_000
+REPORT_DIVIDER = "-" * 72
 
 
 class GrowthGui:
@@ -57,13 +58,13 @@ class GrowthGui:
         self._save_job: str | None = None
         self._report_job: str | None = None
         self._report_running = False
+        self._reports_enabled = False
         self._apa_shortfall_years = 3.0
         self._aca_growth_years = 0.5
 
         self._build()
         self._refresh_settings()
         self.root.after(100, self._drain_messages)
-        self.root.after(1000, self._run_reports)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build(self) -> None:
@@ -309,6 +310,7 @@ class GrowthGui:
         self._log("Starting watcher...")
         self.worker = threading.Thread(target=self._run_watch, daemon=True)
         self.worker.start()
+        self._start_reports()
 
     def _run_watch(self) -> None:
         try:
@@ -330,9 +332,11 @@ class GrowthGui:
 
     def _stop(self) -> None:
         self._set_status("Stopping...")
+        self._stop_reports()
         self.stop_event.set()
 
     def _on_stopped(self) -> None:
+        self._stop_reports()
         self.start_button.configure(state="normal")
         self.stop_button.configure(state="disabled")
         self.preview_button.configure(state="normal")
@@ -370,8 +374,24 @@ class GrowthGui:
         self.start_button.configure(state="normal")
         self._set_status("Idle")
 
+    def _start_reports(self) -> None:
+        """Run the first buy/sell report now and schedule the next one."""
+        self._stop_reports()
+        self._reports_enabled = True
+        self._run_reports()
+
+    def _stop_reports(self) -> None:
+        """Cancel the pending buy/sell report."""
+        self._reports_enabled = False
+        if self._report_job is not None:
+            with contextlib.suppress(tk.TclError):
+                self.root.after_cancel(self._report_job)
+            self._report_job = None
+
     def _run_reports(self) -> None:
         """Start a buy/sell read if the previous one finished, then reschedule."""
+        if not self._reports_enabled:
+            return
         if not self._report_running:
             self._report_running = True
             threading.Thread(target=self._read_reports, daemon=True).start()
@@ -393,13 +413,11 @@ class GrowthGui:
             self._log(f"Unexpected buy/sell error: {error}")
         finally:
             self._report_running = False
+            self._log(REPORT_DIVIDER)
 
     def _on_close(self) -> None:
         self._persist_current_settings(popup=False)
-        if self._report_job is not None:
-            with contextlib.suppress(tk.TclError):
-                self.root.after_cancel(self._report_job)
-            self._report_job = None
+        self._stop_reports()
         self.stop_event.set()
         self.root.destroy()
 

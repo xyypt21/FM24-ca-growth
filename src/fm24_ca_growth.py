@@ -205,8 +205,7 @@ def watch(
     Save reload detection: reloading a save changes every address in memory,
     including the club. The watcher compares the club address on each loop
     iteration. When it changes, the state resets to the current month without
-    settling and the next plan is previewed. Every settlement re-reads all
-    rosters, so no address is cached.
+    settling. Every settlement re-reads all rosters, so no address is cached.
     """
     today = game_date(memory)
     if today is None:
@@ -215,7 +214,6 @@ def watch(
     last_club = user_club(memory)
     last_month = month_key(today)
     log(f"Game date {today}; waiting for the next month.")
-    show_plan(memory, today, settings, log)
 
     while True:
         if _wait(stop_event):
@@ -239,7 +237,6 @@ def watch(
             )
             last_club = current_club
             last_month = month_key(now)
-            show_plan(memory, now, settings, log)
             continue
 
         key = month_key(now)
