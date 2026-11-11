@@ -1,6 +1,8 @@
 {
   "monthly_gain": 2,
   "max_age": 23,
+  "apa_shortfall_years": 2,
+  "aca_growth_years": 0.5,
   "cap": {
     "start_age": 18.0,
     "start_ratio": 0.7,

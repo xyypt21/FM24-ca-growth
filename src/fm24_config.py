@@ -38,6 +38,10 @@ class CapRule:
     end_ratio: float
 
 
+DEFAULT_APA_SHORTFALL_YEARS = 3.0
+DEFAULT_ACA_GROWTH_YEARS = 0.5
+
+
 @dataclass(frozen=True, slots=True)
 class GrowthSettings:
     """Validated values from config.json."""
@@ -45,6 +49,8 @@ class GrowthSettings:
     monthly_gain: int
     max_age: int
     cap: CapRule
+    apa_shortfall_years: float = DEFAULT_APA_SHORTFALL_YEARS
+    aca_growth_years: float = DEFAULT_ACA_GROWTH_YEARS
 
 
 # Sections used by the current step. Add names here as features grow.
@@ -106,6 +112,14 @@ def load_settings(path: Path = SETTINGS_PATH) -> dict[str, Any]:
     return settings
 
 
+def _positive_number(settings: dict[str, Any], name: str, default: float) -> float:
+    """Return a positive number from settings, or raise a clear error."""
+    value = settings.get(name, default)
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+        raise RuntimeError(f"config.json {name} must be a positive number")
+    return float(value)
+
+
 def load_growth_settings(path: Path = SETTINGS_PATH) -> GrowthSettings:
     """Load and validate the growth settings in config.json."""
     settings = load_settings(path)
@@ -142,7 +156,13 @@ def load_growth_settings(path: Path = SETTINGS_PATH) -> GrowthSettings:
     cap = CapRule(
         float(start_age), float(start_ratio), float(end_age), float(end_ratio)
     )
-    return GrowthSettings(gain, max_age, cap)
+    apa_shortfall_years = _positive_number(
+        settings, "apa_shortfall_years", DEFAULT_APA_SHORTFALL_YEARS
+    )
+    aca_growth_years = _positive_number(
+        settings, "aca_growth_years", DEFAULT_ACA_GROWTH_YEARS
+    )
+    return GrowthSettings(gain, max_age, cap, apa_shortfall_years, aca_growth_years)
 
 
 def save_growth_settings(settings: GrowthSettings, path: Path = SETTINGS_PATH) -> None:
@@ -154,6 +174,8 @@ def save_growth_settings(settings: GrowthSettings, path: Path = SETTINGS_PATH) -
 
     data["monthly_gain"] = settings.monthly_gain
     data["max_age"] = settings.max_age
+    data["apa_shortfall_years"] = settings.apa_shortfall_years
+    data["aca_growth_years"] = settings.aca_growth_years
     existing = data.get("cap")
     cap = existing if isinstance(existing, dict) else {}
     cap.update(

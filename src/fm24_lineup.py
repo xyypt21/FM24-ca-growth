@@ -4,16 +4,17 @@ For each metric (ACA, APA), scipy assigns players to the 11 formation slots.
 The best XI is selected first, then the same solver picks the second XI from the
 remaining players. The third squad fills the remaining depth targets.
 
-APA projects CA to ``max_age``, capped by PA and by three years of growth:
+APA projects CA to ``max_age``, capped by PA and by ``apa_shortfall_years``:
 
     age >= max_age: APA = CA
     age <  max_age: APA = min(PA, round(CA + monthly_gain * 12 * (max_age - age)),
-                              CA + monthly_gain * 12 * 3)
+                              round(CA + monthly_gain * 12 * apa_shortfall_years))
 
-ACA adds six months of growth, capped by the age cap and APA:
+ACA adds ``aca_growth_years`` of growth, capped by the age cap and APA:
 
     age >= max_age: ACA = CA
-    age <  max_age: ACA = max(CA, min(CA + 6 * monthly_gain, cap, APA))
+    age <  max_age: ACA = max(CA, min(round(CA + aca_growth_years * 12 * monthly_gain),
+                                     cap, APA))
 
 The sell list lives in ``fm24_sell``. Agreed incoming players are added and
 agreed outgoing players are removed by ``fm24_transfers``.
@@ -92,35 +93,35 @@ def select_lineup(
     return sorted(lineup, key=lambda entry: slots.index(entry[0]))
 
 
-# APA never assumes more than this many years of growth when PA is still far
-# away: CA + monthly_gain * 12 * APA_SHORTFALL_YEARS.
-APA_SHORTFALL_YEARS = 3
+# APA never assumes more than ``settings.apa_shortfall_years`` of growth when PA
+# is still far away: CA + monthly_gain * 12 * apa_shortfall_years.
 
 
 def predict_apa(player: Player, settings: GrowthSettings) -> int:
-    """Project CA to max_age, capped by PA and by three years of growth.
+    """Project CA to max_age, capped by PA and by a configured growth span.
 
-    The max_age projection can promise more than three years of growth. When
-    even three years cannot reach PA (``CA + gain * 36 < PA``), the projection
-    is limited to ``CA + gain * 36`` instead.
+    The max_age projection can promise more than ``apa_shortfall_years`` of
+    growth. When even that span cannot reach PA, the projection is limited to
+    ``CA + monthly_gain * 12 * apa_shortfall_years`` instead.
     """
     age = player["age"]
     ca = player["ca"]
     if age is None or age >= settings.max_age:
         return ca
     projected = ca + settings.monthly_gain * 12 * (settings.max_age - age)
-    three_years = ca + settings.monthly_gain * 12 * APA_SHORTFALL_YEARS
-    return min(player["pa"], round(projected), three_years)
+    limited = ca + settings.monthly_gain * 12 * settings.apa_shortfall_years
+    return min(player["pa"], round(projected), round(limited))
 
 
 def predict_aca(player: Player, settings: GrowthSettings) -> int:
-    """CA plus six months of growth, capped by cap and APA, never below CA."""
+    """CA plus configured growth, capped by cap and APA, never below CA."""
     age = player["age"]
     ca = player["ca"]
     if age is None or age >= settings.max_age:
         return ca
     cap = growth_cap(age, player["pa"], settings.cap)
-    aca = min(ca + 6 * settings.monthly_gain, cap, predict_apa(player, settings))
+    growth = settings.aca_growth_years * 12 * settings.monthly_gain
+    aca = min(round(ca + growth), cap, predict_apa(player, settings))
     return max(ca, aca)
 
 

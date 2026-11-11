@@ -253,6 +253,29 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.monthly_gain, GAIN)
         self.assertEqual(settings.max_age, MAX_AGE)
         self.assertEqual(settings.cap, CAP)
+        self.assertEqual(settings.apa_shortfall_years, 3.0)
+        self.assertEqual(settings.aca_growth_years, 0.5)
+
+    def test_loads_configured_growth_spans(self) -> None:
+        data = {
+            "monthly_gain": GAIN,
+            "max_age": MAX_AGE,
+            "apa_shortfall_years": 2,
+            "aca_growth_years": 1.5,
+            "cap": {
+                "start_age": 18,
+                "start_ratio": 0.7,
+                "end_age": 22,
+                "end_ratio": 0.9,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            settings = load_growth_settings(path)
+
+        self.assertEqual(settings.apa_shortfall_years, 2.0)
+        self.assertEqual(settings.aca_growth_years, 1.5)
 
     def test_save_settings_round_trip(self) -> None:
         data = {

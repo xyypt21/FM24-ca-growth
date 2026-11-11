@@ -213,11 +213,12 @@ from the remaining players. The third squad fills depth targets (GK 2, DM 6,
 DC 6, other positions 4) from the remaining players in descending metric order;
 versatile players count for every position they can play. APA projects CA to
 `max_age` with
-`min(PA, round(CA + monthly_gain * 12 * (max_age - age)), CA + monthly_gain * 36)`;
-at or above `max_age` it is CA. ACA is `max(CA, min(CA + 6 * monthly_gain, cap, APA))`,
-or CA at or above `max_age`. `prepare_players()` drops loaned players and adds
-the `aca`/`apa` fields for every squad; the sell list is built by
-`fm24_sell.py`. Players on loan are excluded.
+`min(PA, round(CA + monthly_gain * 12 * (max_age - age)), round(CA + monthly_gain * 12 * apa_shortfall_years))`;
+at or above `max_age` it is CA. ACA is
+`max(CA, min(round(CA + aca_growth_years * 12 * monthly_gain), cap, APA))`, or CA
+at or above `max_age`. `prepare_players()` drops loaned players and adds the
+`aca`/`apa` fields for every squad; the sell list is built by `fm24_sell.py`.
+Players on loan are excluded.
 
 Loan detection compares two club UIDs with the controlled team UIDs:
 

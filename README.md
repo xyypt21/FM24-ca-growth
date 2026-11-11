@@ -139,9 +139,10 @@ pythonw src/fm24_ca_growth_gui.pyw
 - **Stop** stops it without closing the window.
 - **Preview next settlement** reads the roster and prints the plan; it writes
   nothing.
-- The settings panel edits `monthly_gain`, `max_age`, cap start/end age, and cap
-  start/end ratio. Changes are validated and saved to `config.json`
-  automatically (shortly after typing); Start and Preview also save first.
+- The settings panel edits `monthly_gain`, `max_age`, `apa_shortfall_years`,
+  `aca_growth_years`, cap start/end age, and cap start/end ratio. Changes are
+  validated and saved to `config.json` automatically (shortly after typing);
+  Start and Preview also save first.
 - **How cap works** opens a window that explains the exact rule:
   - `age <= start_age`: cap is `PA × start_ratio`
   - `start_age < age < end_age`: the ratio rises linearly to `end_ratio`
@@ -166,16 +167,17 @@ ACA First XI / Second XI / Third XI
 APA First XI / Second XI / Third XI
 ```
 
-APA projects current CA to `max_age`, capped by PA and by three years of growth;
-ACA adds six months of growth:
+APA projects current CA to `max_age`, capped by PA and by `apa_shortfall_years`;
+ACA adds `aca_growth_years`:
 
 ```text
 age >= max_age: APA = CA
 age <  max_age: APA = min(PA, round(CA + monthly_gain * 12 * (max_age - age)),
-                          CA + monthly_gain * 12 * 3)
+                          round(CA + monthly_gain * 12 * apa_shortfall_years))
 
 age >= max_age: ACA = CA
-age <  max_age: ACA = max(CA, min(CA + 6 * monthly_gain, cap, APA))
+age <  max_age: ACA = max(CA, min(round(CA + aca_growth_years * 12 * monthly_gain),
+                                cap, APA))
 ```
 
 Example:
@@ -191,8 +193,9 @@ ST   Keke Topp                    19.7 118  124  150  ST
 ...
 ```
 
-- `aca` ranks by six-month growth, `apa` by projected CA.
-- `monthly_gain`, `max_age`, and `cap` come from `src/config.json`.
+- `aca` ranks by `aca_growth_years` of growth, `apa` by projected CA.
+- `monthly_gain`, `max_age`, `apa_shortfall_years`, `aca_growth_years`, and `cap`
+  come from `src/config.json`.
 - The best XI is selected first, then the second XI from the remaining players.
 - The third XI is filled from the remaining players, highest metric first, until
   these depth targets are met: GK 2, DM 6, DC 6, all other positions 4.
@@ -346,7 +349,7 @@ concrete walkthrough with real addresses and values.
 | `.github/workflows/build-exe.yml` | Build the Windows exe on GitHub Actions |
 | `scripts/build_exe.py` | Local/CI PyInstaller build script |
 | `src/fm24_memory.py` | Process access, low-level reads/writes, and pointer vectors |
-| `src/config.json` | Growth settings: `monthly_gain`, `max_age`, and the linear `cap` |
+| `src/config.json` | Growth settings: `monthly_gain`, `max_age`, growth spans, and the linear `cap` |
 | `src/fm24_config.py` | Load and validate `offsets.toml` and `config.json` |
 | `src/offsets.toml` | FM24 memory offsets |
 | `tests/` | Unit tests (no game process required) |

@@ -66,6 +66,8 @@ class GrowthGui:
 
         self.gain_var = tk.StringVar()
         self.max_age_var = tk.StringVar()
+        self.apa_years_var = tk.StringVar()
+        self.aca_years_var = tk.StringVar()
         self.start_age_var = tk.StringVar()
         self.start_ratio_var = tk.StringVar()
         self.end_age_var = tk.StringVar()
@@ -74,6 +76,8 @@ class GrowthGui:
         for variable in (
             self.gain_var,
             self.max_age_var,
+            self.apa_years_var,
+            self.aca_years_var,
             self.start_age_var,
             self.start_ratio_var,
             self.end_age_var,
@@ -83,10 +87,12 @@ class GrowthGui:
 
         self._field(form, 0, 0, "Monthly CA gain", self.gain_var)
         self._field(form, 0, 2, "Max age (no growth at or above)", self.max_age_var)
-        self._field(form, 1, 0, "Cap start age", self.start_age_var)
-        self._field(form, 1, 2, "Cap start ratio (of PA)", self.start_ratio_var)
-        self._field(form, 2, 0, "Cap end age", self.end_age_var)
-        self._field(form, 2, 2, "Cap end ratio (of PA)", self.end_ratio_var)
+        self._field(form, 1, 0, "APA shortfall years", self.apa_years_var)
+        self._field(form, 1, 2, "ACA growth years", self.aca_years_var)
+        self._field(form, 2, 0, "Cap start age", self.start_age_var)
+        self._field(form, 2, 2, "Cap start ratio (of PA)", self.start_ratio_var)
+        self._field(form, 3, 0, "Cap end age", self.end_age_var)
+        self._field(form, 3, 2, "Cap end ratio (of PA)", self.end_ratio_var)
 
         controls = ttk.Frame(self.root)
         controls.pack(fill="x", **padding)
@@ -146,6 +152,8 @@ class GrowthGui:
         try:
             self.gain_var.set(str(settings.monthly_gain))
             self.max_age_var.set(str(settings.max_age))
+            self.apa_years_var.set(f"{settings.apa_shortfall_years:g}")
+            self.aca_years_var.set(f"{settings.aca_growth_years:g}")
             self.start_age_var.set(f"{settings.cap.start_age:g}")
             self.start_ratio_var.set(f"{settings.cap.start_ratio:g}")
             self.end_age_var.set(f"{settings.cap.end_age:g}")
@@ -208,6 +216,8 @@ class GrowthGui:
         try:
             gain = int(self.gain_var.get())
             max_age = int(self.max_age_var.get())
+            apa_years = float(self.apa_years_var.get())
+            aca_years = float(self.aca_years_var.get())
             start_age = float(self.start_age_var.get())
             start_ratio = float(self.start_ratio_var.get())
             end_age = float(self.end_age_var.get())
@@ -222,6 +232,9 @@ class GrowthGui:
         if max_age < 0:
             self._settings_error("Max age must be zero or positive.", popup)
             return None
+        if apa_years <= 0 or aca_years <= 0:
+            self._settings_error("Growth spans must be positive.", popup)
+            return None
         if start_age < 0 or end_age <= start_age:
             self._settings_error("Require 0 <= start age < end age.", popup)
             return None
@@ -233,6 +246,8 @@ class GrowthGui:
             gain,
             max_age,
             CapRule(start_age, start_ratio, end_age, end_ratio),
+            apa_years,
+            aca_years,
         )
 
     def _settings_error(self, message: str, popup: bool = True) -> None:
