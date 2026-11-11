@@ -204,19 +204,27 @@ ST   Keke Topp                    19.7 118  124  150  ST
 
 ## List players to sell
 
-List the players who are in none of the ACA/APA first, second, and third squads
-and are older than `max_age`:
+List the players who cannot improve the six squads:
 
 ```powershell
 python src/fm24_sell.py   # one run, then exit
 ```
 
-It builds the same six squads as `fm24_lineup.py`, then keeps a player when both
-are true:
+It builds the same six squads as `fm24_lineup.py`. A player who is in none of
+them is kept when either is true:
 
 ```text
-the player is in none of the six squads
-player age > max_age (the same value used for CA growth)
+age > max_age
+    no growth left, whatever the ability
+age < max_age, ACA > weakest ACA squad player, APA < weakest APA squad player
+    good enough to play now, but no long-term ceiling
+```
+
+The floors are read from the squads themselves:
+
+```text
+ACA floor = lowest ACA across the ACA first, second, and third squads
+APA floor = lowest APA across the APA first, second, and third squads
 ```
 
 The list is sorted by ACA, highest first. Players at exactly `max_age`, players
@@ -228,8 +236,10 @@ players are included and agreed outgoing players are removed.
 Example:
 
 ```text
-Sell (not in ACA/APA lineups, age > 23)
+Sell (outside ACA/APA lineups; age > 23 or ACA > 101 and APA < 119)
 Slot Name                          Age  CA  ACA  APA  Positions
+-    Bleron Krasniqi              21.2  93  105  117  AML/AMC/AMR/ST
+-    Grace Bokake                 21.6  93  105  117  MC/AML/AMC/AMR/ST
 -    Andreas Ivan                 28.6  92   92   92  ML/AML/AMC/AMR
 ```
 

@@ -80,8 +80,38 @@ class SellCandidatesTest(unittest.TestCase):
 
         self.assertEqual(candidates[0][0], "-")
 
-    def test_label_contains_the_age_limit(self) -> None:
-        self.assertEqual(sell_label(23), "Sell (not in ACA/APA lineups, age > 23)")
+    def test_keeps_young_players_with_high_aca_and_low_apa(self) -> None:
+        squad_aca = player(10, 120, 160, ["ST"], age=20.0)
+        squad_apa = player(11, 100, 141, ["ST"], age=20.0)
+        squad_aca["aca"] = 120
+        squad_aca["apa"] = 160
+        squad_apa["aca"] = 100
+        squad_apa["apa"] = 141
+        players = [
+            player(1, 121, 130, ["ST"], age=20.0),  # high ACA, low APA
+            player(2, 120, 130, ["ST"], age=20.0),  # ACA equal to the floor
+            player(3, 121, 141, ["ST"], age=20.0),  # APA equal to the floor
+            player(4, 121, 130, ["ST"], age=23.0),  # age equal to max_age
+        ]
+        for entry in players:
+            entry["aca"] = entry["ca"]
+            entry["apa"] = entry["pa"]
+        lineups = [
+            ("ACA First XI", [("ST", squad_aca)]),
+            ("APA First XI", [("ST", squad_apa)]),
+        ]
+
+        candidates = sell_candidates(players, lineups, 23)
+
+        # ACA floor 120, APA floor 141.
+        self.assertEqual([p["address"] for _, p in candidates], [1])
+
+    def test_label_contains_the_limits(self) -> None:
+        self.assertEqual(
+            sell_label(23, 120, 141),
+            "Sell (outside ACA/APA lineups; age > 23 or ACA > 120 and APA < 141)",
+        )
+        self.assertEqual(sell_label(23), "Sell (outside ACA/APA lineups; age > 23)")
 
 
 class FindSellTest(unittest.TestCase):
@@ -91,7 +121,7 @@ class FindSellTest(unittest.TestCase):
 
         label, candidates = find_sell(players, SETTINGS)
 
-        self.assertEqual(label, sell_label(23))
+        self.assertTrue(label.startswith("Sell (outside ACA/APA lineups; age > 23"))
         self.assertEqual([p["address"] for _, p in candidates], [100])
 
     def test_returns_nothing_when_everyone_is_young(self) -> None:

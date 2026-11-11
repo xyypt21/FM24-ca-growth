@@ -1,13 +1,19 @@
-"""List players to sell: outside every lineup and older than ``max_age``.
+"""List players to sell: outside every lineup, with no room in the squads.
 
-The ACA and APA three squads come from ``fm24_lineup``. A player is a sell
-candidate when both are true:
+The ACA and APA three squads come from ``fm24_lineup``. A player who is in none
+of the six squads is a sell candidate when either is true:
 
-    the player is in none of the ACA/APA first, second, and third squads
-    the player is older than max_age (no growth left)
+    age > max_age
+        no growth left, whatever the ability
+    age < max_age, ACA > weakest ACA squad player, APA < weakest APA squad player
+        good enough to play now, but no long-term ceiling
 
-The list is sorted by ACA, highest first. ``max_age`` comes from
-``src/config.json``, the same value used for CA growth.
+The second rule compares a player's ACA with the lowest ACA across the three ACA
+squads, and their APA with the lowest APA across the three APA squads.
+
+Players at exactly ``max_age`` or with an unknown age are never listed. The list
+is sorted by ACA, highest first. ``max_age`` comes from ``src/config.json``, the
+same value used for CA growth.
 
 Run:
 
@@ -26,27 +32,57 @@ from fm24_players import Player, all_players
 from fm24_transfers import with_transfers
 
 
+def squad_floor(
+    lineups: list[tuple[str, list[tuple[str, Player]]]], metric: str
+) -> int | None:
+    """Return the lowest metric value in the ACA or APA squads."""
+    values = [
+        player[metric]
+        for label, lineup in lineups
+        if label.startswith(f"{metric.upper()} ")
+        for _, player in lineup
+    ]
+    return min(values) if values else None
+
+
 def sell_candidates(
     players: list[Player],
     lineups: list[tuple[str, list[tuple[str, Player]]]],
     max_age: int,
 ) -> list[tuple[str, Player]]:
-    """Return players outside every lineup who are older than ``max_age``."""
+    """Return players outside every lineup who cannot improve the squads."""
     selected = {player["address"] for _, lineup in lineups for _, player in lineup}
-    candidates = [
-        player
-        for player in players
-        if player["address"] not in selected
-        and player["age"] is not None
-        and player["age"] > max_age
-    ]
+    aca_floor = squad_floor(lineups, "aca")
+    apa_floor = squad_floor(lineups, "apa")
+
+    candidates = []
+    for player in players:
+        if player["address"] in selected:
+            continue
+        age = player["age"]
+        if age is None:
+            continue
+        if age > max_age or (
+            age < max_age
+            and aca_floor is not None
+            and apa_floor is not None
+            and player["aca"] > aca_floor
+            and player["apa"] < apa_floor
+        ):
+            candidates.append(player)
+
     candidates.sort(key=lambda player: (-player["aca"], str(player["name"])))
     return [("-", player) for player in candidates]
 
 
-def sell_label(max_age: int) -> str:
+def sell_label(
+    max_age: int, aca_floor: int | None = None, apa_floor: int | None = None
+) -> str:
     """Return the section label for the sell list."""
-    return f"Sell (not in ACA/APA lineups, age > {max_age})"
+    label = f"Sell (outside ACA/APA lineups; age > {max_age}"
+    if aca_floor is not None and apa_floor is not None:
+        label += f" or ACA > {aca_floor} and APA < {apa_floor}"
+    return label + ")"
 
 
 def find_sell(
@@ -55,9 +91,12 @@ def find_sell(
     """Build the ACA/APA lineups and return the players to sell."""
     prepared = prepare_players(players, settings)
     lineups = build_lineups(prepared, settings)
-    return sell_label(settings.max_age), sell_candidates(
-        prepared, lineups, settings.max_age
+    label = sell_label(
+        settings.max_age,
+        squad_floor(lineups, "aca"),
+        squad_floor(lineups, "apa"),
     )
+    return label, sell_candidates(prepared, lineups, settings.max_age)
 
 
 def main() -> int:

@@ -234,17 +234,19 @@ controlled -> loaned in. Either way the player is skipped.
 
 Reads no extra offsets of its own: it reuses the player records from
 `fm24_players.py`, the agreed future transfers from `fm24_transfers.py`, and the
-six squads from `fm24_lineup.py`. A player is listed when both are true:
+six squads from `fm24_lineup.py`. A player outside every squad is listed when
+either is true:
 
 ```text
-player address is in none of the ACA/APA first, second, and third squads
-player age > max_age (the value from config.json used for CA growth)
+age > max_age
+age < max_age and ACA > ACA squad floor and APA < APA squad floor
 ```
 
-Squad membership is compared by player record address, so a copied player dict
-is still treated as selected. Players at exactly `max_age`, players with unknown
-age, and loaned players are not listed. The result is sorted by ACA, highest
-first.
+`ACA squad floor` is the lowest ACA across the three ACA squads; `APA squad
+floor` is the lowest APA across the three APA squads. Squad membership is
+compared by player record address, so a copied player dict is still treated as
+selected. Players at exactly `max_age`, players with unknown age, and loaned
+players are not listed. The result is sorted by ACA, highest first.
 
 ## fm24_transfers.py
 
