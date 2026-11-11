@@ -152,19 +152,19 @@ pythonw src/fm24_ca_growth_gui.pyw
 
 ## Pick a lineup
 
-Build CA, ACA, and APA first/second/third 4-3-3 lineups from every controlled
-team with scipy's assignment solver:
+Build ACA and APA first/second/third 4-3-3 lineups from every controlled team
+with scipy's assignment solver:
 
 ```powershell
 python src/fm24_lineup.py   # one run, then exit
 ```
 
-The nine lineups are:
+The sections are:
 
 ```text
-CA First XI / Second XI / Third XI
 ACA First XI / Second XI / Third XI
 APA First XI / Second XI / Third XI
+ACA Reserves
 ```
 
 APA projects current CA to `max_age`; ACA adds six months of growth:
@@ -177,17 +177,36 @@ age >= max_age: ACA = CA
 age <  max_age: ACA = max(CA, min(CA + 6 * monthly_gain, cap, APA))
 ```
 
+After the three ACA squads, `ACA Reserves` lists every remaining player whose
+ACA is at least 90% of the 20th percentile ACA of those squads:
+
+```text
+cutoff = 0.9 * P20(ACA of the ACA first, second, and third squads)
+```
+
+The reserve list is sorted by ACA, highest first. Players already in the three
+ACA squads are excluded; APA squad players can still appear.
+
 Example:
 
 ```text
 ACA First XI
 Slot Name                          Age  CA  ACA  APA  Positions
-GK   Marius Müller                30.0 126  126  126  GK
-AMC  Assan Ouédraogo              17.6 127  126  180  MC/AML/AMC
+GK   Marius Müller                30.4 125  125  125  GK
+DL   Thomas Ouwejan               27.2 123  123  123  DL/DM/ML/WBL
+DM   Lewis Bate                   21.1 128  134  144  DM/MC
+AMC  Assan Ouédraogo              17.6 127  127  180  MC/AML/AMC
+ST   Keke Topp                    19.7 118  124  150  ST
+...
+
+ACA Reserves (>= 90% of 20% percentile = 104.2)
+Slot Name                          Age  CA  ACA  APA  Positions
+-    Paul Pöpperl                 20.8 104  111  122  AML/AMC/ST
+-    David Mella                  18.6 109  109  144  ML/MR/AML/AMR
 ...
 ```
 
-- `ca` ranks by current ability, `aca` by six-month growth, `apa` by projected CA.
+- `aca` ranks by six-month growth, `apa` by projected CA.
 - `monthly_gain`, `max_age`, and `cap` come from `src/config.json`.
 - The best XI is selected first, then the second XI from the remaining players.
 - The third XI is filled from the remaining players, highest metric first, until
@@ -196,7 +215,7 @@ AMC  Assan Ouédraogo              17.6 127  126  180  MC/AML/AMC
   third squad only once.
 - Positions are read from the player record (`>= 15` can play the slot).
 - Players on loan (loaned in or loaned out) are excluded.
-- The four lineups are printed to the console; no files are written.
+- The lineups are printed to the console; no files are written.
 
 ## Build a Windows exe
 
@@ -266,7 +285,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_manager.py` | Manager lookup, manager UID chain, and command-line entry point |
 | `src/fm24_team.py` | All controlled team UIDs and command-line entry point |
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
-| `src/fm24_lineup.py` | First and second 4-3-3 lineups with scipy assignment |
+| `src/fm24_lineup.py` | ACA/APA first/second/third lineups and the ACA reserve filter |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_ca_growth_gui.pyw` | Tkinter GUI for the CA growth watcher |
 | `.github/workflows/build-exe.yml` | Build the Windows exe on GitHub Actions |
