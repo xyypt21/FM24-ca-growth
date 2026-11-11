@@ -212,8 +212,9 @@ first two come from the scipy assignment, best XI first and then the second XI
 from the remaining players. The third squad fills depth targets (GK 2, DM 6,
 DC 6, other positions 4) from the remaining players in descending metric order;
 versatile players count for every position they can play. APA projects CA to
-`max_age` with `min(PA, round(CA + monthly_gain * 12 * (max_age - age)))`; at or
-above `max_age` it is CA. ACA is `max(CA, min(CA + 6 * monthly_gain, cap, APA))`,
+`max_age` with
+`min(PA, round(CA + monthly_gain * 12 * (max_age - age)), CA + monthly_gain * 36)`;
+at or above `max_age` it is CA. ACA is `max(CA, min(CA + 6 * monthly_gain, cap, APA))`,
 or CA at or above `max_age`. `prepare_players()` drops loaned players and adds
 the `aca`/`apa` fields for every squad; the sell list is built by
 `fm24_sell.py`. Players on loan are excluded.
@@ -238,15 +239,15 @@ six squads from `fm24_lineup.py`. A player outside every squad is listed when
 either is true:
 
 ```text
-age > max_age
-age < max_age and ACA > ACA squad floor and APA < APA squad floor
+age >= max_age
+age < max_age and ACA >= ACA squad floor and APA <= APA squad floor
 ```
 
 `ACA squad floor` is the lowest ACA across the three ACA squads; `APA squad
 floor` is the lowest APA across the three APA squads. Squad membership is
 compared by player record address, so a copied player dict is still treated as
-selected. Players at exactly `max_age`, players with unknown age, and loaned
-players are not listed. The result is sorted by ACA, highest first.
+selected. Players at exactly `max_age` are listed; players with unknown age and
+loaned players are not listed. The result is sorted by ACA, highest first.
 
 ## fm24_transfers.py
 

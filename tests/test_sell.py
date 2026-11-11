@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fm24_config import CapRule, GrowthSettings  # noqa: E402
-from fm24_lineup import DEPTH, SLOTS  # noqa: E402
+from fm24_lineup import DEPTH, SLOTS, build_lineups, prepare_players  # noqa: E402
 from fm24_sell import find_sell, sell_candidates, sell_label  # noqa: E402
 
 SETTINGS = GrowthSettings(2, 23, CapRule(18, 0.7, 22, 0.9))
@@ -62,7 +62,8 @@ class SellCandidatesTest(unittest.TestCase):
 
         candidates = sell_candidates(players, lineups, 23)
 
-        self.assertEqual([p["address"] for _, p in candidates], [1])
+        # age == max_age is now listed too; unknown age is still skipped.
+        self.assertEqual([p["address"] for _, p in candidates], [1, 2])
 
     def test_sorts_by_aca_highest_first(self) -> None:
         players = [
@@ -103,15 +104,15 @@ class SellCandidatesTest(unittest.TestCase):
 
         candidates = sell_candidates(players, lineups, 23)
 
-        # ACA floor 120, APA floor 141.
-        self.assertEqual([p["address"] for _, p in candidates], [1])
+        # ACA floor 120, APA floor 141; both bounds are inclusive.
+        self.assertEqual([p["address"] for _, p in candidates], [1, 3, 4, 2])
 
     def test_label_contains_the_limits(self) -> None:
         self.assertEqual(
             sell_label(23, 120, 141),
-            "Sell (outside ACA/APA lineups; age > 23 or ACA > 120 and APA < 141)",
+            "Sell (outside ACA/APA lineups; age >= 23 or ACA >= 120 and APA <= 141)",
         )
-        self.assertEqual(sell_label(23), "Sell (outside ACA/APA lineups; age > 23)")
+        self.assertEqual(sell_label(23), "Sell (outside ACA/APA lineups; age >= 23)")
 
 
 class FindSellTest(unittest.TestCase):
@@ -121,13 +122,18 @@ class FindSellTest(unittest.TestCase):
 
         label, candidates = find_sell(players, SETTINGS)
 
-        self.assertTrue(label.startswith("Sell (outside ACA/APA lineups; age > 23"))
-        self.assertEqual([p["address"] for _, p in candidates], [100])
+        self.assertTrue(label.startswith("Sell (outside ACA/APA lineups; age >= 23"))
+        self.assertIn(100, [p["address"] for _, p in candidates])
 
-    def test_returns_nothing_when_everyone_is_young(self) -> None:
-        _, candidates = find_sell(deep_squad(), SETTINGS)
+    def test_never_lists_a_selected_player(self) -> None:
+        players = deep_squad()
 
-        self.assertEqual(candidates, [])
+        lineups = build_lineups(prepare_players(players, SETTINGS), SETTINGS)
+        selected = {p["address"] for _, lineup in lineups for _, p in lineup}
+        _, candidates = find_sell(players, SETTINGS)
+
+        self.assertTrue(candidates)
+        self.assertFalse(selected & {p["address"] for _, p in candidates})
 
 
 if __name__ == "__main__":

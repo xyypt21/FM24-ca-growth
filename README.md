@@ -166,11 +166,13 @@ ACA First XI / Second XI / Third XI
 APA First XI / Second XI / Third XI
 ```
 
-APA projects current CA to `max_age`; ACA adds six months of growth:
+APA projects current CA to `max_age`, capped by PA and by three years of growth;
+ACA adds six months of growth:
 
 ```text
 age >= max_age: APA = CA
-age <  max_age: APA = min(PA, round(CA + monthly_gain * 12 * (max_age - age)))
+age <  max_age: APA = min(PA, round(CA + monthly_gain * 12 * (max_age - age)),
+                          CA + monthly_gain * 12 * 3)
 
 age >= max_age: ACA = CA
 age <  max_age: ACA = max(CA, min(CA + 6 * monthly_gain, cap, APA))
@@ -214,9 +216,9 @@ It builds the same six squads as `fm24_lineup.py`. A player who is in none of
 them is kept when either is true:
 
 ```text
-age > max_age
+age >= max_age
     no growth left, whatever the ability
-age < max_age, ACA > weakest ACA squad player, APA < weakest APA squad player
+age < max_age, ACA >= weakest ACA squad player, APA <= weakest APA squad player
     good enough to play now, but no long-term ceiling
 ```
 
@@ -227,8 +229,8 @@ ACA floor = lowest ACA across the ACA first, second, and third squads
 APA floor = lowest APA across the APA first, second, and third squads
 ```
 
-The list is sorted by ACA, highest first. Players at exactly `max_age`, players
-with unknown age, and loaned players are not listed.
+The list is sorted by ACA, highest first. Players at exactly `max_age` are
+listed; players with unknown age and loaned players are not.
 
 The sell list uses the same transfer adjustment as the lineups: agreed incoming
 players are included and agreed outgoing players are removed.
@@ -236,11 +238,11 @@ players are included and agreed outgoing players are removed.
 Example:
 
 ```text
-Sell (outside ACA/APA lineups; age > 23 or ACA > 101 and APA < 119)
+Sell (outside ACA/APA lineups; age >= 23 or ACA >= 101 and APA <= 119)
 Slot Name                          Age  CA  ACA  APA  Positions
--    Bleron Krasniqi              21.2  93  105  117  AML/AMC/AMR/ST
--    Grace Bokake                 21.6  93  105  117  MC/AML/AMC/AMR/ST
--    Andreas Ivan                 28.6  92   92   92  ML/AML/AMC/AMR
+-    Bleron Krasniqi              21.2  91  103  117  AML/AMC/AMR/ST
+-    Grace Bokake                 21.5  91  103  117  MC/AML/AMC/AMR/ST
+-    Andreas Ivan                 28.5  92   92   92  ML/AML/AMC/AMR
 ```
 
 ## Agreed transfers
@@ -337,7 +339,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_team.py` | All controlled team UIDs and command-line entry point |
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_lineup.py` | ACA/APA first/second/third lineups |
-| `src/fm24_sell.py` | Sell list: outside all six squads and older than `max_age` |
+| `src/fm24_sell.py` | Sell list: outside all six squads and no room in them |
 | `src/fm24_transfers.py` | Agreed incoming/outgoing future transfers |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_ca_growth_gui.pyw` | Tkinter GUI for the CA growth watcher |

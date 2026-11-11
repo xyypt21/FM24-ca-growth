@@ -162,6 +162,18 @@ class PredictApaTest(unittest.TestCase):
             predict_apa(player(1, 100, 120, ["ST"], age=24.0), SETTINGS), 100
         )
 
+    def test_caps_at_three_years_of_growth(self) -> None:
+        # 90 + 24 * (23 - 18) = 210 -> PA, but 90 + 24 * 3 = 162 < PA.
+        self.assertEqual(
+            predict_apa(player(1, 90, 180, ["ST"], age=18.0), SETTINGS), 162
+        )
+
+    def test_does_not_cap_when_pa_is_reached_within_three_years(self) -> None:
+        # 100 + 24 * 3 = 172 >= PA, so the PA cap still applies.
+        self.assertEqual(
+            predict_apa(player(1, 100, 150, ["ST"], age=15.0), SETTINGS), 150
+        )
+
     def test_unknown_age_uses_current_ca(self) -> None:
         self.assertEqual(
             predict_apa(player(1, 100, 120, ["ST"], age=None), SETTINGS), 100

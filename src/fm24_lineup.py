@@ -4,10 +4,11 @@ For each metric (ACA, APA), scipy assigns players to the 11 formation slots.
 The best XI is selected first, then the same solver picks the second XI from the
 remaining players. The third squad fills the remaining depth targets.
 
-APA projects CA to ``max_age`` using the monthly growth settings:
+APA projects CA to ``max_age``, capped by PA and by three years of growth:
 
     age >= max_age: APA = CA
-    age <  max_age: APA = min(PA, round(CA + monthly_gain * 12 * (max_age - age)))
+    age <  max_age: APA = min(PA, round(CA + monthly_gain * 12 * (max_age - age)),
+                              CA + monthly_gain * 12 * 3)
 
 ACA adds six months of growth, capped by the age cap and APA:
 
@@ -91,14 +92,25 @@ def select_lineup(
     return sorted(lineup, key=lambda entry: slots.index(entry[0]))
 
 
+# APA never assumes more than this many years of growth when PA is still far
+# away: CA + monthly_gain * 12 * APA_SHORTFALL_YEARS.
+APA_SHORTFALL_YEARS = 3
+
+
 def predict_apa(player: Player, settings: GrowthSettings) -> int:
-    """Project CA to max_age, rounded to an integer and capped by PA."""
+    """Project CA to max_age, capped by PA and by three years of growth.
+
+    The max_age projection can promise more than three years of growth. When
+    even three years cannot reach PA (``CA + gain * 36 < PA``), the projection
+    is limited to ``CA + gain * 36`` instead.
+    """
     age = player["age"]
     ca = player["ca"]
     if age is None or age >= settings.max_age:
         return ca
     projected = ca + settings.monthly_gain * 12 * (settings.max_age - age)
-    return min(player["pa"], round(projected))
+    three_years = ca + settings.monthly_gain * 12 * APA_SHORTFALL_YEARS
+    return min(player["pa"], round(projected), three_years)
 
 
 def predict_aca(player: Player, settings: GrowthSettings) -> int:

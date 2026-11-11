@@ -3,17 +3,17 @@
 The ACA and APA three squads come from ``fm24_lineup``. A player who is in none
 of the six squads is a sell candidate when either is true:
 
-    age > max_age
+    age >= max_age
         no growth left, whatever the ability
-    age < max_age, ACA > weakest ACA squad player, APA < weakest APA squad player
+    age < max_age, ACA >= weakest ACA squad player, APA <= weakest APA squad player
         good enough to play now, but no long-term ceiling
 
 The second rule compares a player's ACA with the lowest ACA across the three ACA
 squads, and their APA with the lowest APA across the three APA squads.
 
-Players at exactly ``max_age`` or with an unknown age are never listed. The list
-is sorted by ACA, highest first. ``max_age`` comes from ``src/config.json``, the
-same value used for CA growth.
+Players with an unknown age are never listed. The list is sorted by ACA, highest
+first. ``max_age`` comes from ``src/config.json``, the same value used for CA
+growth.
 
 Run:
 
@@ -62,12 +62,12 @@ def sell_candidates(
         age = player["age"]
         if age is None:
             continue
-        if age > max_age or (
+        if age >= max_age or (
             age < max_age
             and aca_floor is not None
             and apa_floor is not None
-            and player["aca"] > aca_floor
-            and player["apa"] < apa_floor
+            and player["aca"] >= aca_floor
+            and player["apa"] <= apa_floor
         ):
             candidates.append(player)
 
@@ -79,9 +79,9 @@ def sell_label(
     max_age: int, aca_floor: int | None = None, apa_floor: int | None = None
 ) -> str:
     """Return the section label for the sell list."""
-    label = f"Sell (outside ACA/APA lineups; age > {max_age}"
+    label = f"Sell (outside ACA/APA lineups; age >= {max_age}"
     if aca_floor is not None and apa_floor is not None:
-        label += f" or ACA > {aca_floor} and APA < {apa_floor}"
+        label += f" or ACA >= {aca_floor} and APA <= {apa_floor}"
     return label + ")"
 
 
