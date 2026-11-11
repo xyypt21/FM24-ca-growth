@@ -2,12 +2,11 @@
 
 The APA first, second, and third squads come from ``fm24_lineup``. The baseline
 is the bottom 20% of APA across those squads: sort every squad player's APA and
-take ``values[int(len(values) * 0.2)]``. A player at or below the baseline is
-weak.
+take ``values[int(len(values) * 0.2)]``. A player below the baseline is weak.
 
 Each weak player adds to the slot they were picked for:
 
-    score += squad_weight * (baseline - player APA + 1)
+    score += squad_weight * (baseline - player APA)
 
 The first squad weighs 3, the second 2, and the third 1. A lower APA gives a
 larger gap, so a weak starter costs more than a weak third-squad player. The
@@ -54,8 +53,9 @@ def position_scores(
 ) -> list[tuple[str, int, int]]:
     """Return ``(slot, weak count, score)`` for positions below the baseline.
 
-    Only slots with a positive score are returned, sorted by score highest
-    first and then by the formation slot order.
+    Only players with APA below the baseline are weak. Only slots with a
+    positive score are returned, sorted by score highest first and then by the
+    formation slot order.
     """
     if baseline is None:
         return []
@@ -65,10 +65,10 @@ def position_scores(
     for index, lineup in enumerate(squads):
         weight = SQUAD_WEIGHTS[index] if index < len(SQUAD_WEIGHTS) else 0
         for slot, player in lineup:
-            if player["apa"] > baseline:
+            if player["apa"] >= baseline:
                 continue
             counts[slot] += 1
-            scores[slot] += weight * (baseline - player["apa"] + 1)
+            scores[slot] += weight * (baseline - player["apa"])
 
     order = {slot: index for index, slot in enumerate(dict.fromkeys(SLOTS))}
     return sorted(

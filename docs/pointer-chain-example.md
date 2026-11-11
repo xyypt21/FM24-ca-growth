@@ -263,18 +263,19 @@ values = sorted(APA of every APA first/second/third squad player)
 baseline = values[int(len(values) * 0.2)]
 ```
 
-A player at or below the baseline is weak. Each weak player adds to the slot they
-were picked for:
+A player below the baseline is weak. Each weak player adds to the slot they were
+picked for:
 
 ```text
-score[slot] += squad weight * (baseline - player APA + 1)
+score[slot] += squad weight * (baseline - player APA)
 squad weight: first XI 3, second XI 2, third XI 1
 ```
 
 The first and second squads both have one player per slot. The third squad only
 fills the remaining depth, so some slots have no third-squad player. DC and DM
-combine their two columns. Positions with no weak player are left out; the rest
-are sorted by score, highest first, then by formation slot order.
+combine their two columns. A player exactly at the baseline is not weak.
+Positions with no weak player are left out; the rest are sorted by score, highest
+first, then by formation slot order.
 
 ## fm24_transfers.py
 

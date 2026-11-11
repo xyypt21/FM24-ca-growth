@@ -266,17 +266,18 @@ takes the bottom 20% of APA across those squads:
 baseline = sorted(APA of all three squads)[int(number of players * 0.2)]
 ```
 
-A player at or below the baseline is weak. Each weak player adds to the slot they
-were picked for:
+A player below the baseline is weak. Each weak player adds to the slot they were
+picked for:
 
 ```text
-score += squad weight * (baseline - player APA + 1)
+score += squad weight * (baseline - player APA)
 squad weight: first XI 3, second XI 2, third XI 1
 ```
 
 Positions are sorted by score, highest first; positions without a weak player
 are left out. DC and DM combine both slots of the formation. A lower APA, or a
-weak player in a higher squad, gives a larger score.
+weak player in a higher squad, gives a larger score. A player exactly at the
+baseline is not weak.
 
 The buy list uses the same transfer adjustment as the lineups: agreed incoming
 players are included and agreed outgoing players are removed.
@@ -286,9 +287,8 @@ Example:
 ```text
 Buy (APA bottom 20% = 124)
 Slot  Score  Weak
-DR       13     3
-DM        7     2
-DC        1     1
+DR        9     2
+DM        4     2
 ```
 
 ## Agreed transfers

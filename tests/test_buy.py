@@ -81,14 +81,14 @@ class PositionScoresTest(unittest.TestCase):
 
         rows = position_scores(squads, 120)
 
-        # ST: 3 * (20 + 1) + 2 * (0 + 1) = 65, two players.
-        # DC: 2 * (10 + 1) = 22, one player. GK and the third ST are above it.
-        self.assertEqual(rows, [("ST", 2, 65), ("DC", 1, 22)])
+        # ST: 3 * (120 - 100) = 60, one player. The second ST is equal to the
+        # baseline and is not weak. DC: 2 * (120 - 110) = 20, one player.
+        self.assertEqual(rows, [("ST", 1, 60), ("DC", 1, 20)])
 
-    def test_players_equal_to_the_baseline_are_weak(self) -> None:
+    def test_players_equal_to_the_baseline_are_not_weak(self) -> None:
         rows = position_scores([[("ST", {"apa": 120})]], 120)
 
-        self.assertEqual(rows, [("ST", 1, 3)])
+        self.assertEqual(rows, [])
 
     def test_returns_nothing_without_a_baseline(self) -> None:
         self.assertEqual(position_scores([[("ST", {"apa": 100})]], None), [])
