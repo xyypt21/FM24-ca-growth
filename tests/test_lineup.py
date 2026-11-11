@@ -14,6 +14,7 @@ from fm24_lineup import (  # noqa: E402
     METRICS,
     SLOTS,
     build_lineups,
+    ca_after_years,
     predict_aca,
     predict_apa,
     prepare_players,
@@ -136,6 +137,14 @@ class PreparePlayersTest(unittest.TestCase):
         self.assertEqual([p["address"] for p in prepared], [1, 2])
         self.assertEqual(prepared[0]["aca"], predict_aca(prepared[0], SETTINGS))
         self.assertEqual(prepared[0]["apa"], predict_apa(prepared[0], SETTINGS))
+
+
+class CaAfterYearsTest(unittest.TestCase):
+    def test_adds_monthly_gain_for_the_given_years(self) -> None:
+        self.assertEqual(ca_after_years(100, 1.5, SETTINGS), 136)
+
+    def test_rounds_to_an_integer(self) -> None:
+        self.assertEqual(ca_after_years(127, 2.3, SETTINGS), 182)
 
 
 class PredictApaTest(unittest.TestCase):

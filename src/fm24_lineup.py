@@ -6,15 +6,18 @@ remaining players. The third squad fills the remaining depth targets.
 
 APA projects CA to ``max_age``, capped by PA and by ``apa_shortfall_years``:
 
+    ca_after_years(ca, years) = round(ca + monthly_gain * 12 * years)
+
     age >= max_age: APA = CA
-    age <  max_age: APA = min(PA, round(CA + monthly_gain * 12 * (max_age - age)),
-                              round(CA + monthly_gain * 12 * apa_shortfall_years))
+    age <  max_age: APA = min(PA,
+                              ca_after_years(CA, max_age - age),
+                              ca_after_years(CA, apa_shortfall_years))
 
 ACA adds ``aca_growth_years`` of growth, capped by the age cap and APA:
 
     age >= max_age: ACA = CA
-    age <  max_age: ACA = max(CA, min(round(CA + aca_growth_years * 12 * monthly_gain),
-                                     cap, APA))
+    age <  max_age: ACA = max(
+        CA, min(ca_after_years(CA, aca_growth_years), cap, APA))
 
 The sell list lives in ``fm24_sell``. Agreed incoming players are added and
 agreed outgoing players are removed by ``fm24_transfers``.
@@ -93,24 +96,24 @@ def select_lineup(
     return sorted(lineup, key=lambda entry: slots.index(entry[0]))
 
 
-# APA never assumes more than ``settings.apa_shortfall_years`` of growth when PA
-# is still far away: CA + monthly_gain * 12 * apa_shortfall_years.
+def ca_after_years(ca: int, years: float, settings: GrowthSettings) -> int:
+    """Return CA after ``years`` of monthly gains, rounded to an integer."""
+    return round(ca + settings.monthly_gain * 12 * years)
 
 
 def predict_apa(player: Player, settings: GrowthSettings) -> int:
     """Project CA to max_age, capped by PA and by a configured growth span.
 
     The max_age projection can promise more than ``apa_shortfall_years`` of
-    growth. When even that span cannot reach PA, the projection is limited to
-    ``CA + monthly_gain * 12 * apa_shortfall_years`` instead.
+    growth. When even that span cannot reach PA, ``ca_at_growth_limit`` wins.
     """
     age = player["age"]
     ca = player["ca"]
     if age is None or age >= settings.max_age:
         return ca
-    projected = ca + settings.monthly_gain * 12 * (settings.max_age - age)
-    limited = ca + settings.monthly_gain * 12 * settings.apa_shortfall_years
-    return min(player["pa"], round(projected), round(limited))
+    ca_at_max_age = ca_after_years(ca, settings.max_age - age, settings)
+    ca_at_growth_limit = ca_after_years(ca, settings.apa_shortfall_years, settings)
+    return min(player["pa"], ca_at_max_age, ca_at_growth_limit)
 
 
 def predict_aca(player: Player, settings: GrowthSettings) -> int:
@@ -120,8 +123,8 @@ def predict_aca(player: Player, settings: GrowthSettings) -> int:
     if age is None or age >= settings.max_age:
         return ca
     cap = growth_cap(age, player["pa"], settings.cap)
-    growth = settings.aca_growth_years * 12 * settings.monthly_gain
-    aca = min(round(ca + growth), cap, predict_apa(player, settings))
+    ca_after_aca_growth = ca_after_years(ca, settings.aca_growth_years, settings)
+    aca = min(ca_after_aca_growth, cap, predict_apa(player, settings))
     return max(ca, aca)
 
 

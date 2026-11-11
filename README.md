@@ -171,13 +171,16 @@ APA projects current CA to `max_age`, capped by PA and by `apa_shortfall_years`;
 ACA adds `aca_growth_years`:
 
 ```text
+ca_after_years(ca, years) = round(ca + monthly_gain * 12 * years)
+
 age >= max_age: APA = CA
-age <  max_age: APA = min(PA, round(CA + monthly_gain * 12 * (max_age - age)),
-                          round(CA + monthly_gain * 12 * apa_shortfall_years))
+age <  max_age: APA = min(PA,
+                          ca_after_years(CA, max_age - age),
+                          ca_after_years(CA, apa_shortfall_years))
 
 age >= max_age: ACA = CA
-age <  max_age: ACA = max(CA, min(round(CA + aca_growth_years * 12 * monthly_gain),
-                                cap, APA))
+age <  max_age: ACA = max(
+    CA, min(ca_after_years(CA, aca_growth_years), cap, APA))
 ```
 
 Example:

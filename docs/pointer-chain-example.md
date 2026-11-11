@@ -211,14 +211,15 @@ The lineup selector builds ACA and APA first XI, second XI, and third XI. The
 first two come from the scipy assignment, best XI first and then the second XI
 from the remaining players. The third squad fills depth targets (GK 2, DM 6,
 DC 6, other positions 4) from the remaining players in descending metric order;
-versatile players count for every position they can play. APA projects CA to
-`max_age` with
-`min(PA, round(CA + monthly_gain * 12 * (max_age - age)), round(CA + monthly_gain * 12 * apa_shortfall_years))`;
+versatile players count for every position they can play.
+`ca_after_years(ca, years) = round(ca + monthly_gain * 12 * years)`. APA projects
+CA to `max_age` with
+`min(PA, ca_after_years(CA, max_age - age), ca_after_years(CA, apa_shortfall_years))`;
 at or above `max_age` it is CA. ACA is
-`max(CA, min(round(CA + aca_growth_years * 12 * monthly_gain), cap, APA))`, or CA
-at or above `max_age`. `prepare_players()` drops loaned players and adds the
-`aca`/`apa` fields for every squad; the sell list is built by `fm24_sell.py`.
-Players on loan are excluded.
+`max(CA, min(ca_after_years(CA, aca_growth_years), cap, APA))`, or CA at or above
+`max_age`. `prepare_players()` drops loaned players and adds the `aca`/`apa`
+fields for every squad; the sell list is built by `fm24_sell.py`. Players on loan
+are excluded.
 
 Loan detection compares two club UIDs with the controlled team UIDs:
 
