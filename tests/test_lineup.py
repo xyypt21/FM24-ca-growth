@@ -1,4 +1,4 @@
-"""Unit tests for the scipy ACA/APA lineup selector and ACA reserves."""
+"""Unit tests for the scipy ACA/APA lineup selector."""
 
 from __future__ import annotations
 
@@ -13,11 +13,10 @@ from fm24_lineup import (  # noqa: E402
     DEPTH,
     METRICS,
     SLOTS,
-    aca_reserves,
     build_lineups,
-    percentile,
     predict_aca,
     predict_apa,
+    prepare_players,
     select_lineup,
 )
 
@@ -58,13 +57,13 @@ def deep_squad() -> list[dict[str, object]]:
 
 
 class BuildLineupsTest(unittest.TestCase):
-    def test_builds_three_squads_per_metric_plus_reserves(self) -> None:
+    def test_builds_three_squads_per_metric(self) -> None:
         lineups = build_lineups(deep_squad(), SETTINGS)
 
-        self.assertEqual(len(lineups), len(METRICS) * 3 + 1)
+        self.assertEqual(len(lineups), len(METRICS) * 3)
         self.assertEqual([len(lineup) for _, lineup in lineups[:2]], [11, 11])
         self.assertTrue(lineups[2][1])
-        self.assertTrue(lineups[-1][0].startswith("ACA Reserves"))
+        self.assertFalse(any(label.startswith("ACA Reserves") for label, _ in lineups))
 
     def test_aca_metric_puts_best_aca_in_first_xi(self) -> None:
         lineups = build_lineups(deep_squad(), SETTINGS)
@@ -123,53 +122,20 @@ class BuildLineupsTest(unittest.TestCase):
             build_lineups(deep_squad()[:10], SETTINGS)
 
 
-def aca_player(address: int, aca: int) -> dict[str, object]:
-    """Return a player dict with only the ACA field set."""
-    result = player(address, 100, 200, ["ST"])
-    result["aca"] = aca
-    return result
+def mixed_squad() -> list[dict[str, object]]:
+    """Return two available players and one loaned player."""
+    loaned = player(3, 100, 120, ["ST"])
+    loaned["loan"] = "loaned out"
+    return [player(1, 100, 120, ["ST"]), player(2, 110, 130, ["ST"]), loaned]
 
 
-class AcaReservesTest(unittest.TestCase):
-    def test_percentile_interpolates(self) -> None:
-        self.assertEqual(percentile([100, 110], 0.2), 102.0)
-        self.assertEqual(percentile([100], 0.2), 100.0)
+class PreparePlayersTest(unittest.TestCase):
+    def test_adds_metrics_and_drops_loaned_players(self) -> None:
+        prepared = prepare_players(mixed_squad(), SETTINGS)
 
-    def test_reserves_use_cutoff_and_skip_every_aca_squad(self) -> None:
-        players = [
-            aca_player(1, 100),  # in the first squad
-            aca_player(2, 110),  # in the second squad
-            aca_player(3, 120),  # in the third squad
-            aca_player(4, 90),  # below the cutoff
-            aca_player(5, 103),  # above the cutoff
-            aca_player(6, 200),  # above the cutoff
-        ]
-        lineups = [
-            ("ACA First XI", [("ST", players[0])]),
-            ("ACA Second XI", [("ST", players[1])]),
-            ("ACA Third XI", [("ST", players[2])]),
-        ]
-
-        label, reserves = aca_reserves(players, lineups)
-
-        # P20 of [100, 110, 120] is 104; 90% of it is 93.6.
-        self.assertIn("93.6", label)
-        self.assertEqual([player["address"] for _, player in reserves], [6, 5])
-
-    def test_build_lineups_appends_reserves_outside_aca_squads(self) -> None:
-        lineups = build_lineups(deep_squad(), SETTINGS)
-        aca_players = {
-            id(player)
-            for label, lineup in lineups
-            if label.startswith("ACA ") and "Reserves" not in label
-            for _, player in lineup
-        }
-        reserves = lineups[-1][1]
-
-        self.assertTrue(reserves)
-        self.assertTrue(all(id(player) not in aca_players for _, player in reserves))
-        acas = [player["aca"] for _, player in reserves]
-        self.assertEqual(acas, sorted(acas, reverse=True))
+        self.assertEqual([p["address"] for p in prepared], [1, 2])
+        self.assertEqual(prepared[0]["aca"], predict_aca(prepared[0], SETTINGS))
+        self.assertEqual(prepared[0]["apa"], predict_apa(prepared[0], SETTINGS))
 
 
 class PredictApaTest(unittest.TestCase):

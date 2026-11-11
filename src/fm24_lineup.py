@@ -14,8 +14,7 @@ ACA adds six months of growth, capped by the age cap and APA:
     age >= max_age: ACA = CA
     age <  max_age: ACA = max(CA, min(CA + 6 * monthly_gain, cap, APA))
 
-The ACA reserve list contains players outside the three ACA squads whose ACA is
-at least 90% of the 20th percentile ACA across those squads.
+The ACA reserve list lives in ``fm24_reserves``.
 
 Run:
 
@@ -26,8 +25,6 @@ with a save loaded.
 """
 
 from __future__ import annotations
-
-import math
 
 from scipy.optimize import linear_sum_assignment
 
@@ -64,9 +61,6 @@ DEPTH = {
     "ST": 4,
 }
 FORBIDDEN = 10**9
-# ACA reserve cutoff: 90% of the 20th percentile ACA of the three ACA squads.
-RESERVE_PERCENTILE = 0.20
-RESERVE_RATIO = 0.90
 
 
 def select_lineup(
@@ -164,59 +158,24 @@ def fill_third(
     return third
 
 
-def percentile(values: list[int], fraction: float) -> float:
-    """Return the linearly interpolated percentile of the given values."""
-    ordered = sorted(values)
-    position = (len(ordered) - 1) * fraction
-    lower = math.floor(position)
-    upper = math.ceil(position)
-    if lower == upper:
-        return float(ordered[lower])
-    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
-
-
-def aca_reserves(
-    players: list[Player],
-    lineups: list[tuple[str, list[tuple[str, Player]]]],
-) -> tuple[str, list[tuple[str, Player]]] | None:
-    """Return players outside the ACA squads whose ACA meets the reserve cutoff.
-
-    The cutoff is ``RESERVE_RATIO`` times the ACA at ``RESERVE_PERCENTILE`` of
-    the players selected into the ACA first, second, and third squads.
-    """
-    aca_squads = [lineup for label, lineup in lineups if label.startswith("ACA ")]
-    values = [player["aca"] for lineup in aca_squads for _, player in lineup]
-    if not values:
-        return None
-
-    cutoff = percentile(values, RESERVE_PERCENTILE) * RESERVE_RATIO
-    selected = {id(player) for lineup in aca_squads for _, player in lineup}
-    reserves = [
-        player
-        for player in players
-        if id(player) not in selected and player["aca"] >= cutoff
-    ]
-    reserves.sort(key=lambda player: (-player["aca"], str(player["name"])))
-    label = (
-        f"ACA Reserves (>= {RESERVE_RATIO:.0%} of "
-        f"{RESERVE_PERCENTILE:.0%} percentile = {cutoff:.1f})"
-    )
-    return label, [("-", player) for player in reserves]
-
-
-def build_lineups(
-    players: list[Player], settings: GrowthSettings
-) -> list[tuple[str, list[tuple[str, Player]]]]:
-    """Return ACA/APA first/second/third lineups and the ACA reserve list."""
-    players = [player for player in players if not player.get("loan")]
-    enriched = [
+def prepare_players(players: list[Player], settings: GrowthSettings) -> list[Player]:
+    """Drop loaned players and add the ``aca``/``apa`` fields."""
+    available = [player for player in players if not player.get("loan")]
+    return [
         {
             **player,
             "apa": predict_apa(player, settings),
             "aca": predict_aca(player, settings),
         }
-        for player in players
+        for player in available
     ]
+
+
+def build_lineups(
+    players: list[Player], settings: GrowthSettings
+) -> list[tuple[str, list[tuple[str, Player]]]]:
+    """Return ACA/APA first/second/third lineups."""
+    enriched = prepare_players(players, settings)
     lineups: list[tuple[str, list[tuple[str, Player]]]] = []
     for metric in METRICS:
         first = select_lineup(enriched, metric)
@@ -234,10 +193,6 @@ def build_lineups(
         lineups.append((f"{metric.upper()} First XI", first))
         lineups.append((f"{metric.upper()} Second XI", second))
         lineups.append((f"{metric.upper()} Third XI", third))
-
-    reserve = aca_reserves(enriched, lineups)
-    if reserve is not None:
-        lineups.append(reserve)
     return lineups
 
 

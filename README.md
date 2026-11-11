@@ -164,7 +164,6 @@ The sections are:
 ```text
 ACA First XI / Second XI / Third XI
 APA First XI / Second XI / Third XI
-ACA Reserves
 ```
 
 APA projects current CA to `max_age`; ACA adds six months of growth:
@@ -177,16 +176,6 @@ age >= max_age: ACA = CA
 age <  max_age: ACA = max(CA, min(CA + 6 * monthly_gain, cap, APA))
 ```
 
-After the three ACA squads, `ACA Reserves` lists every remaining player whose
-ACA is at least 90% of the 20th percentile ACA of those squads:
-
-```text
-cutoff = 0.9 * P20(ACA of the ACA first, second, and third squads)
-```
-
-The reserve list is sorted by ACA, highest first. Players already in the three
-ACA squads are excluded; APA squad players can still appear.
-
 Example:
 
 ```text
@@ -197,12 +186,6 @@ DL   Thomas Ouwejan               27.2 123  123  123  DL/DM/ML/WBL
 DM   Lewis Bate                   21.1 128  134  144  DM/MC
 AMC  Assan Ouédraogo              17.6 127  127  180  MC/AML/AMC
 ST   Keke Topp                    19.7 118  124  150  ST
-...
-
-ACA Reserves (>= 90% of 20% percentile = 104.2)
-Slot Name                          Age  CA  ACA  APA  Positions
--    Paul Pöpperl                 20.8 104  111  122  AML/AMC/ST
--    David Mella                  18.6 109  109  144  ML/MR/AML/AMR
 ...
 ```
 
@@ -216,6 +199,35 @@ Slot Name                          Age  CA  ACA  APA  Positions
 - Positions are read from the player record (`>= 15` can play the slot).
 - Players on loan (loaned in or loaned out) are excluded.
 - The lineups are printed to the console; no files are written.
+
+## List ACA reserves
+
+List the players outside the three ACA squads whose ACA is still close to that
+squad level:
+
+```powershell
+python src/fm24_reserves.py   # one run, then exit
+```
+
+It builds the same ACA squads as `fm24_lineup.py`, then applies:
+
+```text
+cutoff = 0.9 * P20(ACA of the ACA first, second, and third squads)
+```
+
+`P20` is the linearly interpolated 20th percentile. Every remaining player with
+`ACA >= cutoff` is listed, sorted by ACA highest first. Players already in the
+three ACA squads are excluded; APA squad players can still appear.
+
+Example:
+
+```text
+ACA Reserves (>= 90% of 20% percentile = 104.2)
+Slot Name                          Age  CA  ACA  APA  Positions
+-    Paul Pöpperl                 20.8 104  111  122  AML/AMC/ST
+-    David Mella                  18.6 109  109  144  ML/MR/AML/AMR
+...
+```
 
 ## Build a Windows exe
 
@@ -285,7 +297,8 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_manager.py` | Manager lookup, manager UID chain, and command-line entry point |
 | `src/fm24_team.py` | All controlled team UIDs and command-line entry point |
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
-| `src/fm24_lineup.py` | ACA/APA first/second/third lineups and the ACA reserve filter |
+| `src/fm24_lineup.py` | ACA/APA first/second/third lineups |
+| `src/fm24_reserves.py` | ACA reserve list outside the three ACA squads |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_ca_growth_gui.pyw` | Tkinter GUI for the CA growth watcher |
 | `.github/workflows/build-exe.yml` | Build the Windows exe on GitHub Actions |

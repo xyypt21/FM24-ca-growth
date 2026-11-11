@@ -214,9 +214,9 @@ DC 6, other positions 4) from the remaining players in descending metric order;
 versatile players count for every position they can play. APA projects CA to
 `max_age` with `min(PA, round(CA + monthly_gain * 12 * (max_age - age)))`; at or
 above `max_age` it is CA. ACA is `max(CA, min(CA + 6 * monthly_gain, cap, APA))`,
-or CA at or above `max_age`. The ACA reserve list then keeps players outside the
-three ACA squads whose ACA is at least `0.9 * P20` of those squads, sorted from
-highest ACA to lowest. Players on loan are excluded.
+or CA at or above `max_age`. `prepare_players()` drops loaned players and adds
+the `aca`/`apa` fields for every squad; the reserve list is built by
+`fm24_reserves.py`. Players on loan are excluded.
 
 Loan detection compares two club UIDs with the controlled team UIDs:
 
@@ -229,3 +229,20 @@ club + uid_off 0x0C -> club UID
 
 If the current club is not controlled -> loaned out. If the owner club is not
 controlled -> loaned in. Either way the player is skipped.
+
+## fm24_reserves.py
+
+Reads no extra offsets: it reuses the player records from `fm24_players.py` and
+the squads from `fm24_lineup.py`. The cutoff comes from the ACA values of the
+three ACA squads:
+
+```text
+ACA first XI + second XI + third XI  -> ACA values
+P20 = linearly interpolated 20th percentile of those values
+cutoff = 0.9 * P20
+```
+
+Players outside the three ACA squads whose `ACA >= cutoff` are kept and sorted
+by ACA, highest first. Squad membership is compared by player record address, so
+a copied player dict is still treated as selected. APA squad players are not
+excluded, because only the ACA squads define the cutoff.
