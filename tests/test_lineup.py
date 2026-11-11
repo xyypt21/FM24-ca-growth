@@ -63,7 +63,7 @@ class BuildLineupsTest(unittest.TestCase):
         self.assertEqual(len(lineups), len(METRICS) * 3)
         self.assertEqual([len(lineup) for _, lineup in lineups[:2]], [11, 11])
         self.assertTrue(lineups[2][1])
-        self.assertFalse(any(label.startswith("ACA Reserves") for label, _ in lineups))
+        self.assertFalse(any(label.startswith("Sell") for label, _ in lineups))
 
     def test_aca_metric_puts_best_aca_in_first_xi(self) -> None:
         lineups = build_lineups(deep_squad(), SETTINGS)

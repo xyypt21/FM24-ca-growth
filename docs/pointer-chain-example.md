@@ -215,8 +215,8 @@ versatile players count for every position they can play. APA projects CA to
 `max_age` with `min(PA, round(CA + monthly_gain * 12 * (max_age - age)))`; at or
 above `max_age` it is CA. ACA is `max(CA, min(CA + 6 * monthly_gain, cap, APA))`,
 or CA at or above `max_age`. `prepare_players()` drops loaned players and adds
-the `aca`/`apa` fields for every squad; the reserve list is built by
-`fm24_reserves.py`. Players on loan are excluded.
+the `aca`/`apa` fields for every squad; the sell list is built by
+`fm24_sell.py`. Players on loan are excluded.
 
 Loan detection compares two club UIDs with the controlled team UIDs:
 
@@ -230,23 +230,21 @@ club + uid_off 0x0C -> club UID
 If the current club is not controlled -> loaned out. If the owner club is not
 controlled -> loaned in. Either way the player is skipped.
 
-## fm24_reserves.py
+## fm24_sell.py
 
 Reads no extra offsets of its own: it reuses the player records from
 `fm24_players.py`, the agreed future transfers from `fm24_transfers.py`, and the
-squads from `fm24_lineup.py`. The cutoff comes from the ACA values of the three
-ACA squads:
+six squads from `fm24_lineup.py`. A player is listed when both are true:
 
 ```text
-ACA first XI + second XI + third XI  -> ACA values
-P20 = ACA of the player ranked ceil(n * 20%) from the lowest
-cutoff = 0.9 * P20
+player address is in none of the ACA/APA first, second, and third squads
+player age > max_age (the value from config.json used for CA growth)
 ```
 
-Players outside the three ACA squads whose `ACA >= cutoff` are kept and sorted
-by ACA, highest first. Squad membership is compared by player record address, so
-a copied player dict is still treated as selected. APA squad players are not
-excluded, because only the ACA squads define the cutoff.
+Squad membership is compared by player record address, so a copied player dict
+is still treated as selected. Players at exactly `max_age`, players with unknown
+age, and loaned players are not listed. The result is sorted by ACA, highest
+first.
 
 ## fm24_transfers.py
 

@@ -202,45 +202,41 @@ ST   Keke Topp                    19.7 118  124  150  ST
 - Agreed outgoing players are excluded even while they are still in the roster.
 - The lineups are printed to the console; no files are written.
 
-## List ACA reserves
+## List players to sell
 
-List the players outside the three ACA squads whose ACA is still close to that
-squad level:
+List the players who are in none of the ACA/APA first, second, and third squads
+and are older than `max_age`:
 
 ```powershell
-python src/fm24_reserves.py   # one run, then exit
+python src/fm24_sell.py   # one run, then exit
 ```
 
-It builds the same ACA squads as `fm24_lineup.py`, then applies:
+It builds the same six squads as `fm24_lineup.py`, then keeps a player when both
+are true:
 
 ```text
-cutoff = 0.9 * P20(ACA of the ACA first, second, and third squads)
+the player is in none of the six squads
+player age > max_age (the same value used for CA growth)
 ```
 
-`P20` is the ACA of the player ranked `ceil(n × 20%)` from the lowest, where
-`n` is the number of players in the three ACA squads. No interpolation is used:
-26 players give the 6th lowest ACA, 25 players the 5th lowest. Every remaining
-player with `ACA >= cutoff` is listed, sorted by ACA highest first. Players
-already in the three ACA squads are excluded; APA squad players can still
-appear.
+The list is sorted by ACA, highest first. Players at exactly `max_age`, players
+with unknown age, and loaned players are not listed.
 
-The reserve list uses the same transfer adjustment as the lineups: agreed
-incoming players are included and agreed outgoing players are removed.
+The sell list uses the same transfer adjustment as the lineups: agreed incoming
+players are included and agreed outgoing players are removed.
 
 Example:
 
 ```text
-ACA Reserves (>= 90% of 20% percentile = 104.2)
+Sell (not in ACA/APA lineups, age > 23)
 Slot Name                          Age  CA  ACA  APA  Positions
--    Paul Pöpperl                 20.8 104  111  122  AML/AMC/ST
--    David Mella                  18.6 109  109  144  ML/MR/AML/AMR
-...
+-    Andreas Ivan                 28.6  92   92   92  ML/AML/AMC/AMR
 ```
 
 ## Agreed transfers
 
-Both lineup commands read the global future transfer table and apply it to the
-player pool before selecting squads:
+Both the lineup and sell commands read the global future transfer table and
+apply it to the player pool before selecting squads:
 
 ```text
 status = 19 (agreed, not yet active) and transfer date > in-game date
@@ -331,7 +327,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_team.py` | All controlled team UIDs and command-line entry point |
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_lineup.py` | ACA/APA first/second/third lineups |
-| `src/fm24_reserves.py` | ACA reserve list outside the three ACA squads |
+| `src/fm24_sell.py` | Sell list: outside all six squads and older than `max_age` |
 | `src/fm24_transfers.py` | Agreed incoming/outgoing future transfers |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_ca_growth_gui.pyw` | Tkinter GUI for the CA growth watcher |

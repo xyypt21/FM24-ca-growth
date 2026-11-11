@@ -14,8 +14,8 @@ ACA adds six months of growth, capped by the age cap and APA:
     age >= max_age: ACA = CA
     age <  max_age: ACA = max(CA, min(CA + 6 * monthly_gain, cap, APA))
 
-The ACA reserve list lives in ``fm24_reserves``. Agreed incoming players are
-added and agreed outgoing players are removed by ``fm24_transfers``.
+The sell list lives in ``fm24_sell``. Agreed incoming players are added and
+agreed outgoing players are removed by ``fm24_transfers``.
 
 Run:
 
