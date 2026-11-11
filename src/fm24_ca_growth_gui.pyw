@@ -2,7 +2,8 @@
 
 Start and stop the watcher, preview the next settlement, edit the growth
 settings, and save them back to ``config.json``. The window also refreshes the
-buy and sell lists every 30 seconds.
+buy and sell lists every 30 seconds, and the log keeps only the newest 2000
+lines.
 
 Run by double-clicking this file, or with:
 
@@ -40,6 +41,8 @@ from fm24_transfers import with_transfers
 # Buy and sell report refresh interval and the separator printed after each run.
 REPORT_INTERVAL_MS = 30_000
 REPORT_DIVIDER = "-" * 72
+# Keep the log bounded while the watcher runs for a long time.
+LOG_MAX_LINES = 2000
 
 
 class GrowthGui:
@@ -278,6 +281,7 @@ class GrowthGui:
         self.messages.put(message)
 
     def _drain_messages(self) -> None:
+        changed = False
         while True:
             try:
                 message = self.messages.get_nowait()
@@ -287,7 +291,18 @@ class GrowthGui:
             self.log.insert("end", message + "\n")
             self.log.see("end")
             self.log.configure(state="disabled")
+            changed = True
+        if changed:
+            self._trim_log()
         self.root.after(100, self._drain_messages)
+
+    def _trim_log(self) -> None:
+        """Drop the oldest lines so the log stays at ``LOG_MAX_LINES`` lines."""
+        self.log.configure(state="normal")
+        total = int(self.log.index("end-1c").split(".")[0])
+        if total > LOG_MAX_LINES:
+            self.log.delete("1.0", f"{total - LOG_MAX_LINES}.0")
+        self.log.configure(state="disabled")
 
     def _clear_log(self) -> None:
         self.log.configure(state="normal")

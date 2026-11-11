@@ -142,7 +142,8 @@ pythonw src/fm24_ca_growth_gui.pyw
   `apa_shortfall_years` and `aca_growth_years` stay in `config.json` and are
   preserved when the panel saves.
 - The log refreshes the buy and sell lists every 30 seconds while the watcher is
-  running. Each refresh ends with a divider line.
+  running. Each refresh ends with a divider line. The log keeps the newest 2000
+  lines and drops older ones.
 - Starting the watcher does not print a settlement preview; use **Preview next
   settlement** when you want one.
 - **How cap works** opens a window that explains the exact rule:
