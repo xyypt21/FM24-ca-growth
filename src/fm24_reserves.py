@@ -5,6 +5,10 @@ cutoff, and every remaining player at or above it is listed:
 
     cutoff = 0.9 * P20(ACA of the ACA first, second, and third squads)
 
+P20 is the ACA of the player ranked ``ceil(n * 20%)`` from the lowest, where
+``n`` is the number of players in the three ACA squads. No interpolation is
+used, so 26 players give the 6th lowest ACA.
+
 Players already selected into an ACA squad are excluded; APA squad players can
 still appear. The list is sorted by ACA, highest first.
 
@@ -26,20 +30,20 @@ from fm24_memory import Memory
 from fm24_players import Player, all_players
 from fm24_transfers import with_transfers
 
-# ACA reserve cutoff: 90% of the 20th percentile ACA of the three ACA squads.
+# ACA reserve cutoff: 90% of the ACA ranked at the 20th percentile.
 RESERVE_PERCENTILE = 0.20
 RESERVE_RATIO = 0.90
 
 
-def percentile(values: list[int], fraction: float) -> float:
-    """Return the linearly interpolated percentile of the given values."""
+def percentile(values: list[int], fraction: float) -> int:
+    """Return the value at the given percentile rank, without interpolation.
+
+    The rank counts players from the lowest ACA, so ``fraction = 0.20`` with 26
+    players picks the 6th lowest (``ceil(26 * 0.20) = 6``).
+    """
     ordered = sorted(values)
-    position = (len(ordered) - 1) * fraction
-    lower = math.floor(position)
-    upper = math.ceil(position)
-    if lower == upper:
-        return float(ordered[lower])
-    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+    rank = math.ceil(len(ordered) * fraction)
+    return ordered[min(max(rank, 1), len(ordered)) - 1]
 
 
 def aca_reserves(
@@ -48,8 +52,9 @@ def aca_reserves(
 ) -> tuple[str, list[tuple[str, Player]]] | None:
     """Return players outside the ACA squads whose ACA meets the reserve cutoff.
 
-    The cutoff is ``RESERVE_RATIO`` times the ACA at ``RESERVE_PERCENTILE`` of
-    the players selected into the ACA first, second, and third squads.
+    The cutoff is ``RESERVE_RATIO`` times the ACA of the player ranked at
+    ``RESERVE_PERCENTILE`` from the lowest across the ACA first, second, and
+    third squads. No interpolation is used.
     """
     aca_squads = [
         lineup

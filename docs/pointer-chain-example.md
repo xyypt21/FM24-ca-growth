@@ -239,7 +239,7 @@ ACA squads:
 
 ```text
 ACA first XI + second XI + third XI  -> ACA values
-P20 = linearly interpolated 20th percentile of those values
+P20 = ACA of the player ranked ceil(n * 20%) from the lowest
 cutoff = 0.9 * P20
 ```
 

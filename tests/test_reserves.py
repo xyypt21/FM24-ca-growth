@@ -55,9 +55,16 @@ def deep_squad() -> list[dict[str, object]]:
 
 
 class PercentileTest(unittest.TestCase):
-    def test_percentile_interpolates(self) -> None:
-        self.assertEqual(percentile([100, 110], 0.2), 102.0)
-        self.assertEqual(percentile([100], 0.2), 100.0)
+    def test_picks_a_fixed_rank_from_the_lowest(self) -> None:
+        self.assertEqual(percentile([100, 110], 0.2), 100)
+        self.assertEqual(percentile([100], 0.2), 100)
+        self.assertEqual(percentile([50, 100, 200], 0.2), 50)
+
+    def test_rounds_the_rank_up(self) -> None:
+        values = list(range(1, 27))  # 26 players
+        self.assertEqual(percentile(values, 0.2), 6)
+        self.assertEqual(percentile(list(range(1, 26)), 0.2), 5)  # 25 players
+        self.assertEqual(percentile(list(range(1, 21)), 0.2), 4)  # 20 players
 
 
 class AcaReservesTest(unittest.TestCase):
@@ -78,9 +85,10 @@ class AcaReservesTest(unittest.TestCase):
 
         label, reserves = aca_reserves(players, lineups)
 
-        # P20 of [100, 110, 120] is 104; 90% of it is 93.6.
-        self.assertIn("93.6", label)
-        self.assertEqual([player["address"] for _, player in reserves], [6, 5])
+        # P20 of [100, 110, 120] is the 1st lowest (ceil(3 * 0.2) = 1) = 100;
+        # 90% of it is 90.0.
+        self.assertIn("90.0", label)
+        self.assertEqual([player["address"] for _, player in reserves], [6, 5, 4])
 
     def test_squads_are_matched_by_address(self) -> None:
         squad_player = player(1, 100)

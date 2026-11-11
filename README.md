@@ -217,9 +217,12 @@ It builds the same ACA squads as `fm24_lineup.py`, then applies:
 cutoff = 0.9 * P20(ACA of the ACA first, second, and third squads)
 ```
 
-`P20` is the linearly interpolated 20th percentile. Every remaining player with
-`ACA >= cutoff` is listed, sorted by ACA highest first. Players already in the
-three ACA squads are excluded; APA squad players can still appear.
+`P20` is the ACA of the player ranked `ceil(n × 20%)` from the lowest, where
+`n` is the number of players in the three ACA squads. No interpolation is used:
+26 players give the 6th lowest ACA, 25 players the 5th lowest. Every remaining
+player with `ACA >= cutoff` is listed, sorted by ACA highest first. Players
+already in the three ACA squads are excluded; APA squad players can still
+appear.
 
 The reserve list uses the same transfer adjustment as the lineups: agreed
 incoming players are included and agreed outgoing players are removed.
