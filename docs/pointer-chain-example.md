@@ -251,6 +251,31 @@ compared by player record address, so a copied player dict is still treated as
 selected. Players at exactly `max_age` are listed; players with unknown age and
 loaned players are not listed. The result is sorted by ACA, highest first.
 
+## fm24_buy.py
+
+Reads no extra offsets of its own: it reuses the player records from
+`fm24_players.py`, the agreed future transfers from `fm24_transfers.py`, and the
+three APA squads from `fm24_lineup.py`. The baseline is the bottom 20% of APA
+across those squads:
+
+```text
+values = sorted(APA of every APA first/second/third squad player)
+baseline = values[int(len(values) * 0.2)]
+```
+
+A player at or below the baseline is weak. Each weak player adds to the slot they
+were picked for:
+
+```text
+score[slot] += squad weight * (baseline - player APA + 1)
+squad weight: first XI 3, second XI 2, third XI 1
+```
+
+The first and second squads both have one player per slot. The third squad only
+fills the remaining depth, so some slots have no third-squad player. DC and DM
+combine their two columns. Positions with no weak player are left out; the rest
+are sorted by score, highest first, then by formation slot order.
+
 ## fm24_transfers.py
 
 The global future transfer table supplies agreed transfers that are not active

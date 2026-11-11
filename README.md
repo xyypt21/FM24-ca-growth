@@ -251,9 +251,49 @@ Slot Name                          Age  CA  ACA  APA  Positions
 -    Andreas Ivan                 28.5  92   92   92  ML/AML/AMC/AMR
 ```
 
+## Find positions to buy
+
+List the positions whose APA squad players are below the squad baseline:
+
+```powershell
+python src/fm24_buy.py   # one run, then exit
+```
+
+It builds the same APA first, second, and third squads as `fm24_lineup.py`, then
+takes the bottom 20% of APA across those squads:
+
+```text
+baseline = sorted(APA of all three squads)[int(number of players * 0.2)]
+```
+
+A player at or below the baseline is weak. Each weak player adds to the slot they
+were picked for:
+
+```text
+score += squad weight * (baseline - player APA + 1)
+squad weight: first XI 3, second XI 2, third XI 1
+```
+
+Positions are sorted by score, highest first; positions without a weak player
+are left out. DC and DM combine both slots of the formation. A lower APA, or a
+weak player in a higher squad, gives a larger score.
+
+The buy list uses the same transfer adjustment as the lineups: agreed incoming
+players are included and agreed outgoing players are removed.
+
+Example:
+
+```text
+Buy (APA bottom 20% = 124)
+Slot  Score  Weak
+DR       13     3
+DM        7     2
+DC        1     1
+```
+
 ## Agreed transfers
 
-Both the lineup and sell commands read the global future transfer table and
+Both the lineup, sell, and buy commands read the global future transfer table and
 apply it to the player pool before selecting squads:
 
 ```text
@@ -346,6 +386,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_lineup.py` | ACA/APA first/second/third lineups |
 | `src/fm24_sell.py` | Sell list: outside all six squads and no room in them |
+| `src/fm24_buy.py` | Buy list: APA slots below the bottom-20% baseline |
 | `src/fm24_transfers.py` | Agreed incoming/outgoing future transfers |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_ca_growth_gui.pyw` | Tkinter GUI for the CA growth watcher |
