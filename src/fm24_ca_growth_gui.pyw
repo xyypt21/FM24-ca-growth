@@ -1,7 +1,8 @@
 """Tkinter GUI for monthly CA growth.
 
 Start and stop the watcher, preview the next settlement, edit the growth
-settings, and save them back to ``config.json``.
+settings, and save them back to ``config.json``. The window also refreshes the
+buy and sell lists every 30 seconds.
 
 Run by double-clicking this file, or with:
 
@@ -20,6 +21,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
 
+from fm24_buy import find_buy, format_buy
 from fm24_ca_growth import show_plan, watch
 from fm24_config import (
     SETTINGS_PATH,
@@ -29,8 +31,14 @@ from fm24_config import (
     load_growth_settings,
     save_growth_settings,
 )
+from fm24_lineup import format_lineups
 from fm24_memory import Memory
-from fm24_players import game_date
+from fm24_players import all_players, game_date
+from fm24_sell import find_sell
+from fm24_transfers import with_transfers
+
+# Buy and sell report refresh interval.
+REPORT_INTERVAL_MS = 30_000
 
 
 class GrowthGui:
@@ -47,10 +55,15 @@ class GrowthGui:
         self.stop_event = threading.Event()
         self._loading = False
         self._save_job: str | None = None
+        self._report_job: str | None = None
+        self._report_running = False
+        self._apa_shortfall_years = 3.0
+        self._aca_growth_years = 0.5
 
         self._build()
         self._refresh_settings()
         self.root.after(100, self._drain_messages)
+        self.root.after(1000, self._run_reports)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build(self) -> None:
@@ -66,8 +79,6 @@ class GrowthGui:
 
         self.gain_var = tk.StringVar()
         self.max_age_var = tk.StringVar()
-        self.apa_years_var = tk.StringVar()
-        self.aca_years_var = tk.StringVar()
         self.start_age_var = tk.StringVar()
         self.start_ratio_var = tk.StringVar()
         self.end_age_var = tk.StringVar()
@@ -76,8 +87,6 @@ class GrowthGui:
         for variable in (
             self.gain_var,
             self.max_age_var,
-            self.apa_years_var,
-            self.aca_years_var,
             self.start_age_var,
             self.start_ratio_var,
             self.end_age_var,
@@ -87,12 +96,10 @@ class GrowthGui:
 
         self._field(form, 0, 0, "Monthly CA gain", self.gain_var)
         self._field(form, 0, 2, "Max age (no growth at or above)", self.max_age_var)
-        self._field(form, 1, 0, "APA shortfall years", self.apa_years_var)
-        self._field(form, 1, 2, "ACA growth years", self.aca_years_var)
-        self._field(form, 2, 0, "Cap start age", self.start_age_var)
-        self._field(form, 2, 2, "Cap start ratio (of PA)", self.start_ratio_var)
-        self._field(form, 3, 0, "Cap end age", self.end_age_var)
-        self._field(form, 3, 2, "Cap end ratio (of PA)", self.end_ratio_var)
+        self._field(form, 1, 0, "Cap start age", self.start_age_var)
+        self._field(form, 1, 2, "Cap start ratio (of PA)", self.start_ratio_var)
+        self._field(form, 2, 0, "Cap end age", self.end_age_var)
+        self._field(form, 2, 2, "Cap end ratio (of PA)", self.end_ratio_var)
 
         controls = ttk.Frame(self.root)
         controls.pack(fill="x", **padding)
@@ -152,8 +159,8 @@ class GrowthGui:
         try:
             self.gain_var.set(str(settings.monthly_gain))
             self.max_age_var.set(str(settings.max_age))
-            self.apa_years_var.set(f"{settings.apa_shortfall_years:g}")
-            self.aca_years_var.set(f"{settings.aca_growth_years:g}")
+            self._apa_shortfall_years = settings.apa_shortfall_years
+            self._aca_growth_years = settings.aca_growth_years
             self.start_age_var.set(f"{settings.cap.start_age:g}")
             self.start_ratio_var.set(f"{settings.cap.start_ratio:g}")
             self.end_age_var.set(f"{settings.cap.end_age:g}")
@@ -216,8 +223,6 @@ class GrowthGui:
         try:
             gain = int(self.gain_var.get())
             max_age = int(self.max_age_var.get())
-            apa_years = float(self.apa_years_var.get())
-            aca_years = float(self.aca_years_var.get())
             start_age = float(self.start_age_var.get())
             start_ratio = float(self.start_ratio_var.get())
             end_age = float(self.end_age_var.get())
@@ -232,9 +237,6 @@ class GrowthGui:
         if max_age < 0:
             self._settings_error("Max age must be zero or positive.", popup)
             return None
-        if apa_years <= 0 or aca_years <= 0:
-            self._settings_error("Growth spans must be positive.", popup)
-            return None
         if start_age < 0 or end_age <= start_age:
             self._settings_error("Require 0 <= start age < end age.", popup)
             return None
@@ -246,8 +248,8 @@ class GrowthGui:
             gain,
             max_age,
             CapRule(start_age, start_ratio, end_age, end_ratio),
-            apa_years,
-            aca_years,
+            self._apa_shortfall_years,
+            self._aca_growth_years,
         )
 
     def _settings_error(self, message: str, popup: bool = True) -> None:
@@ -368,8 +370,36 @@ class GrowthGui:
         self.start_button.configure(state="normal")
         self._set_status("Idle")
 
+    def _run_reports(self) -> None:
+        """Start a buy/sell read if the previous one finished, then reschedule."""
+        if not self._report_running:
+            self._report_running = True
+            threading.Thread(target=self._read_reports, daemon=True).start()
+        self._report_job = self.root.after(REPORT_INTERVAL_MS, self._run_reports)
+
+    def _read_reports(self) -> None:
+        try:
+            config = load_config()
+            settings = load_growth_settings()
+            with Memory.open(config) as memory:
+                players = with_transfers(memory, all_players(memory))
+                buy = find_buy(players, settings)
+                sell = find_sell(players, settings)
+            self._log(format_buy(*buy))
+            self._log(format_lineups([sell]))
+        except RuntimeError as error:
+            self._log(f"Buy/Sell error: {error}")
+        except Exception as error:  # noqa: BLE001 - show unexpected errors in the GUI
+            self._log(f"Unexpected buy/sell error: {error}")
+        finally:
+            self._report_running = False
+
     def _on_close(self) -> None:
         self._persist_current_settings(popup=False)
+        if self._report_job is not None:
+            with contextlib.suppress(tk.TclError):
+                self.root.after_cancel(self._report_job)
+            self._report_job = None
         self.stop_event.set()
         self.root.destroy()
 

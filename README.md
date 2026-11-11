@@ -139,10 +139,12 @@ pythonw src/fm24_ca_growth_gui.pyw
 - **Stop** stops it without closing the window.
 - **Preview next settlement** reads the roster and prints the plan; it writes
   nothing.
-- The settings panel edits `monthly_gain`, `max_age`, `apa_shortfall_years`,
-  `aca_growth_years`, cap start/end age, and cap start/end ratio. Changes are
-  validated and saved to `config.json` automatically (shortly after typing);
-  Start and Preview also save first.
+- The settings panel edits `monthly_gain`, `max_age`, cap start/end age, and cap
+  start/end ratio. Changes are validated and saved to `config.json`
+  automatically (shortly after typing); Start and Preview also save first.
+  `apa_shortfall_years` and `aca_growth_years` stay in `config.json` and are
+  preserved when the panel saves.
+- The log refreshes the buy and sell lists every 30 seconds.
 - **How cap works** opens a window that explains the exact rule:
   - `age <= start_age`: cap is `PA × start_ratio`
   - `start_age < age < end_age`: the ratio rises linearly to `end_ratio`
