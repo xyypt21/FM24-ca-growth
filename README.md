@@ -198,6 +198,8 @@ ST   Keke Topp                    19.7 118  124  150  ST
   third squad only once.
 - Positions are read from the player record (`>= 15` can play the slot).
 - Players on loan (loaned in or loaned out) are excluded.
+- Agreed incoming players are included even before they join the squad.
+- Agreed outgoing players are excluded even while they are still in the roster.
 - The lineups are printed to the console; no files are written.
 
 ## List ACA reserves
@@ -219,6 +221,9 @@ cutoff = 0.9 * P20(ACA of the ACA first, second, and third squads)
 `ACA >= cutoff` is listed, sorted by ACA highest first. Players already in the
 three ACA squads are excluded; APA squad players can still appear.
 
+The reserve list uses the same transfer adjustment as the lineups: agreed
+incoming players are included and agreed outgoing players are removed.
+
 Example:
 
 ```text
@@ -228,6 +233,26 @@ Slot Name                          Age  CA  ACA  APA  Positions
 -    David Mella                  18.6 109  109  144  ML/MR/AML/AMR
 ...
 ```
+
+## Agreed transfers
+
+Both lineup commands read the global future transfer table and apply it to the
+player pool before selecting squads:
+
+```text
+status = 19 (agreed, not yet active) and transfer date > in-game date
+destination is one of our teams, source is not -> include the player
+source is one of our teams, destination is not -> exclude the player
+both or neither belong to us -> ignore (reserves/youth movement)
+```
+
+Statuses 2, 3, 8, and 15 are bids, listings, or interest; status 20 already
+happened. Staff in the table are skipped by the person vtable tag.
+
+An incoming player is not in a roster yet, so the record is found from the
+person address: `record = person - person_layouts[person tag]`. Their CA, PA,
+age, and positions then come from the same layout as a roster player. Their
+contract still belongs to the old club, so no loan or contract data is read.
 
 ## Build a Windows exe
 
@@ -282,6 +307,11 @@ exe + manager.container_rva   -> manager container
       contract + contract_club -> owner club entry
       entry + entry_struct    -> club; club + uid_off -> club UID (loan check)
       record + ca             -> write u16 current ability (monthly growth)
+
+      exe + future_transfer.manager_rva -> transfer manager
+      manager + vector_begin / vector_end -> future transfer array
+      record + person / dest_team / src_team / date / status -> transfer
+      person - person_layouts[vtable tag] -> incoming player record
 ```
 
 All offsets live in `src/offsets.toml`. Update only that file when the game
@@ -299,6 +329,7 @@ concrete walkthrough with real addresses and values.
 | `src/fm24_players.py` | Player names, CA, PA, and ages for all controlled teams |
 | `src/fm24_lineup.py` | ACA/APA first/second/third lineups |
 | `src/fm24_reserves.py` | ACA reserve list outside the three ACA squads |
+| `src/fm24_transfers.py` | Agreed incoming/outgoing future transfers |
 | `src/fm24_ca_growth.py` | Monthly CA growth (+2) for all controlled players |
 | `src/fm24_ca_growth_gui.pyw` | Tkinter GUI for the CA growth watcher |
 | `.github/workflows/build-exe.yml` | Build the Windows exe on GitHub Actions |

@@ -215,6 +215,7 @@ class PlayerReadTest(unittest.TestCase):
             players[0],
             {
                 "address": PLAYER,
+                "person": PLAYER + 0x278,
                 "team_uid": TEAM_UID,
                 "name": "(unknown)",
                 "ca": 136,

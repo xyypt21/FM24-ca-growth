@@ -56,6 +56,7 @@ REQUIRED_SECTIONS = (
     "club",
     "player",
     "game_date",
+    "future_transfer",
     "read",
 )
 
@@ -77,7 +78,7 @@ def load_config(path: Path = CONFIG_PATH) -> Config:
         raise RuntimeError(f"Offsets file {path} is missing: {', '.join(missing)}")
 
     # TOML keys are strings, but record type tags are numbers in the code.
-    for name in ("layouts", "contract_layouts"):
+    for name in ("layouts", "contract_layouts", "person_layouts"):
         table = config["player"].get(name, {})
         try:
             config["player"][name] = {

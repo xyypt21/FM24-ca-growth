@@ -212,6 +212,7 @@ def players_in_team(
         players.append(
             {
                 "address": address,
+                "person": address + person_offset,
                 "team_uid": team_uid,
                 "name": read_name(memory, person) or "(unknown)",
                 "ca": read_u16(record, player_cfg["ca"]),

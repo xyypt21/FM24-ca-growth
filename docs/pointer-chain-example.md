@@ -232,9 +232,10 @@ controlled -> loaned in. Either way the player is skipped.
 
 ## fm24_reserves.py
 
-Reads no extra offsets: it reuses the player records from `fm24_players.py` and
-the squads from `fm24_lineup.py`. The cutoff comes from the ACA values of the
-three ACA squads:
+Reads no extra offsets of its own: it reuses the player records from
+`fm24_players.py`, the agreed future transfers from `fm24_transfers.py`, and the
+squads from `fm24_lineup.py`. The cutoff comes from the ACA values of the three
+ACA squads:
 
 ```text
 ACA first XI + second XI + third XI  -> ACA values
@@ -246,3 +247,53 @@ Players outside the three ACA squads whose `ACA >= cutoff` are kept and sorted
 by ACA, highest first. Squad membership is compared by player record address, so
 a copied player dict is still treated as selected. APA squad players are not
 excluded, because only the ACA squads define the cutoff.
+
+## fm24_transfers.py
+
+The global future transfer table supplies agreed transfers that are not active
+yet. Only status 19 counts; 20 is already active, and 2/3/8/15 are bids,
+listings, or interest:
+
+```text
+exe base 0x140000000
+  + manager_rva 0x6374650
+  = 0x146374650
+        read ptr     -> 0x2B9ECE50         transfer manager
+  + vector_begin 0x20
+  = 0x2B9ECE70
+        read ptr     -> 0x0C6DF8020        array begin
+  + vector_end 0x28
+  = 0x2B9ECE78
+        read ptr     -> 0x0C6DFF620        array end (3776 records)
+  each entry         -> 0x11582BF50        one transfer record
+        + status 0x7B
+        = 0x11582BFCB
+              read u8    -> 19             agreed, not active
+        + date 0x74
+        = 0x11582BFC4
+              read u32   -> 0x07E800B7     becomes active 2024-07-01
+        + person 0x30
+        = 0x11582BF80
+              read ptr   -> 0x108607B40    player person
+        + dest_team 0x38 / src_team 0x48 -> team addresses
+```
+
+If the destination is one of our team addresses and the source is not, the
+player is incoming; the reverse is outgoing; both or neither (reserve/youth
+movement) is ignored. The person's first 4 bytes are its vtable tag, which also
+tells where the person sits inside the record:
+
+```text
+person 0x108607B40
+  read u32           -> 0x45A4EE78          normal player tag
+person - person_layouts[tag]
+  = 0x108607B40 - 0x278
+  = 0x1086078C8                              player record start
+```
+
+Tags other than `0x45A4EE78` and `0x45C7ECB8` are staff (coaches, scouts) and
+are skipped. An incoming player is read straight from this record: CA/PA,
+positions, and the person sub-object for name and birth date. The contract still
+belongs to the old club, so no loan or contract data is read. Outgoing players
+are still in the roster, so they are matched by person address and removed from
+the pool before the lineups run.

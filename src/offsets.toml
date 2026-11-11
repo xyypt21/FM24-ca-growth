@@ -118,6 +118,31 @@ WBR = 0x216
 "0x45C7E798" = 0x430
 
 
+# Person vtable tag -> person offset inside the player record. An incoming
+# transfer only gives the person address, so the record start is
+# person - offset. Only these two tags are players; the future transfer table
+# also holds staff (coaches, scouts) that have no CA/PA.
+#   0x45A4EE78 -> normal player, person at +0x278
+#   0x45C7ECB8 -> player who is also staff, person at +0x368
+[player.person_layouts]
+"0x45A4EE78" = 0x278
+"0x45C7ECB8" = 0x368
+
+
+[future_transfer]
+# RVA: exe + value -> global transfer manager object.
+manager_rva = 0x6374650
+# Field offsets: manager + value -> future transfer array begin / end.
+vector_begin = 0x20
+vector_end = 0x28
+# Field offsets in one transfer record.
+person = 0x30
+dest_team = 0x38
+src_team = 0x48
+date = 0x74
+status = 0x7B
+
+
 [game_date]
 # RVA: exe + value -> in-game date, u32 = (year << 16) | (time byte << 8) | day
 # of the year. Ages are calculated from this date, not from the system clock.

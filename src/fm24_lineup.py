@@ -14,7 +14,8 @@ ACA adds six months of growth, capped by the age cap and APA:
     age >= max_age: ACA = CA
     age <  max_age: ACA = max(CA, min(CA + 6 * monthly_gain, cap, APA))
 
-The ACA reserve list lives in ``fm24_reserves``.
+The ACA reserve list lives in ``fm24_reserves``. Agreed incoming players are
+added and agreed outgoing players are removed by ``fm24_transfers``.
 
 Run:
 
@@ -32,6 +33,7 @@ from fm24_ca_growth import growth_cap
 from fm24_config import GrowthSettings, load_config, load_growth_settings
 from fm24_memory import Memory
 from fm24_players import Player, all_players
+from fm24_transfers import with_transfers
 
 # 4-3-3: one goalkeeper, four defenders, three midfielders, three forwards.
 SLOTS = (
@@ -224,7 +226,7 @@ def main() -> int:
     settings = load_growth_settings()
     try:
         with Memory.open(config) as memory:
-            players = all_players(memory)
+            players = with_transfers(memory, all_players(memory))
         print(format_lineups(build_lineups(players, settings)))
     except RuntimeError as error:
         print(f"Error: {error}")

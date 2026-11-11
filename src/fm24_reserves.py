@@ -24,6 +24,7 @@ from fm24_config import GrowthSettings, load_config, load_growth_settings
 from fm24_lineup import build_lineups, format_lineups, prepare_players
 from fm24_memory import Memory
 from fm24_players import Player, all_players
+from fm24_transfers import with_transfers
 
 # ACA reserve cutoff: 90% of the 20th percentile ACA of the three ACA squads.
 RESERVE_PERCENTILE = 0.20
@@ -89,7 +90,7 @@ def main() -> int:
     settings = load_growth_settings()
     try:
         with Memory.open(config) as memory:
-            players = all_players(memory)
+            players = with_transfers(memory, all_players(memory))
         reserves = find_reserves(players, settings)
         if reserves is not None:
             print(format_lineups([reserves]))
